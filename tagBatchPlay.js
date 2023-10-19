@@ -160,27 +160,6 @@ async function setBackground() {
 };
 
 
-/**
- * picks up the metadata of the currently loaded photo in Photoshop
- * @returns text buffer containing the metadata
- */
-const getDocumentXMP = () => {
-    return batchPlay(
-        [
-            {
-                _obj: "get",
-                _target: {
-                    _ref: [
-                        { _property: "XMPMetadataAsUTF8" },
-                        { _ref: "document", _enum: "ordinal", _value: "targetEnum" },
-                    ],
-                },
-            },      ],
-        { synchronousExecution: true }
-    )[0].XMPMetadataAsUTF8;
-};
-
-
 async function selectBackgroundLayer_actn() {
    const result = await batchPlay(
       [
@@ -448,6 +427,6 @@ async function linkLayers() {
 };
 
 module.exports = {
-    setForeground, setBackground, setOutsideStroke, getDocumentXMP, makeAPortrait
+    setForeground, setBackground, setOutsideStroke,  makeAPortrait
 };
 

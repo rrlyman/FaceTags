@@ -67,9 +67,11 @@ function displayDictionary(str, pEntry) {
     // Best for accessing both keys and their values
     for (const [key, value] of Object.entries(pEntry)) {
         if (typeof(value)=='object')
-            str += displayDictionary(key, value)+ ",\t";
+            str += displayDictionary(key, value)+ ", ";
+        else if (typeof(value) == "number")
+            str += key + ": " +value.toLocaleString('en-US', {maximumFractionDigits: 2}) + ', ';
         else 
-            str += key + ": \t" + value.toString() + ",\t";
+            str += key + ": " + value.toString() + ", ";
     }
     str += "}";
     //console.log(str);
@@ -127,7 +129,7 @@ function analyzeRectangles(persons, gVertDisplacement) {
         "h": avgHeight
     };
     const bestRect = reduceRectangles(persons, rect);
-    console.log(displayDictionary("average Rectangle = ", rect) + displayDictionary("\tbest Rectangle = ", bestRect));
+    //console.log(displayDictionary("average Rectangle = ", rect) + displayDictionary("\tbest Rectangle = ", bestRect));
 
     return bestRect;
 
@@ -173,7 +175,7 @@ function isIntersect(persons, bestRect) {
     for (let i = 0; i < persons.length; i++) {
         for (let j = i + 1; j < persons.length; j++) {
             if (intersect(persons[i], persons[j], bestRect)) {
-                console.log(persons[i].name + " intersects " + persons[j].name);
+                //console.log(persons[i].name + " intersects " + persons[j].name);
                 return true;
             }
         }

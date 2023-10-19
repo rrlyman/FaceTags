@@ -1,7 +1,7 @@
 
 // copywrite 2023 Richard R. Lyman
 
-const { getDocumentXMP} = require("./tagBatchPlay.js");
+
 /**
  * Picks up the metadaa for the photo, parses it to find the People in Metadata Working Group format
  *  * 
@@ -25,7 +25,7 @@ function readPersonsFromMetadata() {
     //const xmpMetaFromDocument = getDocumentXMP();
     const xmpMeta = new xmp.XMPMeta(getDocumentXMP());
     const ns = "http://www.metadataworkinggroup.com/schemas/regions/";
-    const ns2 = "http://ns.adobe.com/xmp/sType/Area#";
+    //const ns2 = "http://ns.adobe.com/xmp/sType/Area#";
 
     for (let i = 1; i < 1000; i++) {
         const personName = xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Name");  // not listed as async
@@ -56,6 +56,28 @@ function readPersonsFromMetadata() {
     }
     return persons;
 };
+
+/**
+ * picks up the metadata of the currently loaded photo in Photoshop
+ * @returns text buffer containing the metadata
+ */
+const getDocumentXMP = () => {
+    const {batchPlay} = require("photoshop").action;    
+    return batchPlay(
+        [
+            {
+                _obj: "get",
+                _target: {
+                    _ref: [
+                        { _property: "XMPMetadataAsUTF8" },
+                        { _ref: "document", _enum: "ordinal", _value: "targetEnum" },
+                    ],
+                },
+            },      ],
+        { synchronousExecution: true }
+    )[0].XMPMetadataAsUTF8;
+};
+
 
 module.exports = {
     readPersonsFromMetadata
