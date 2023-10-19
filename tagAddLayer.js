@@ -1,7 +1,15 @@
 
 // copywrite 2023 Richard R. Lyman
-// break up long names so they do not overlay each other
 
+
+
+/**
+ * break up long names so they do not overlay each other
+ * 
+ * @param {*} gSettings dictionary containing global settings
+ * @param {*} text string containing the text to justify
+ * @returns string containing lines of text separated by returns
+ */
 function justifyText(gSettings, text) {
     let justified = text.split(" ");                        // separate individual words
     for (let i = 0; i < justified.length - 1; i++) {
@@ -13,14 +21,24 @@ function justifyText(gSettings, text) {
     return justified;
 };
 
-// make a new text layer for a person
-
+/**
+ * make a new text layer for a person, wraps layer addition to make it run modal
+ * @param {*} gSettings dictionary containing global settings
+ * @param {*} person {personName, x, y, w, h}
+ * @param {*} bestRect {w,h} face rectangle to be used for placing the text
+ * 
+ */
 async function addLayer(gSettings, person, bestRect) {
     const { executeAsModal } = require("photoshop").core;
     await executeAsModal(() => addLayer_actn(gSettings, person, bestRect), { "commandName": "Adding a layer for each person." });
 };
 
-
+/**
+ * make a new text layer for a person
+ * @param {*} gSettings dictionary containing global settings
+ * @param {*} person {personName, x, y, w, h}
+ * @param {*} bestRect {w,h} face rectangle to be used for placing the text
+ */
 async function addLayer_actn(gSettings, person, bestRect) {
     const app = require('photoshop').app;
     const gDoc = app.activeDocument;
@@ -36,8 +54,13 @@ async function addLayer_actn(gSettings, person, bestRect) {
     newLayer.textItem.characterStyle.color = gSettings.foreColor;
 };
 
-// a debugging aid to list a dictionary contents.    
-
+  
+/**
+ * a debugging aid to list a dictionary contents. 
+ * @param {*} str string to be prepended to the output
+ * @param {*} pEntry  dictionary containing items to be added to str
+ * @returns string containing str and pEntry items
+ */
 function displayDictionary(str, pEntry) {
     str += "{ ";
     // Best for accessing both keys and their values
@@ -49,14 +72,24 @@ function displayDictionary(str, pEntry) {
     return str;
 };
 
-// inflates the rectangles alot to give more room for text
-// then deflates the rectangles until there are no intersecting rectangles.
-// then inflates them slightly again to make the text bigger.
+/** 
 
-// moves the rectangle down below the chin
-// converts the person regions to pixels.
-// returns an average rectangle size
+*   inflates the rectangles alot to give more room for text
 
+*   deflates the rectangles until there are no intersecting rectangles.
+
+*   inflates them slightly again to make the text bigger.
+
+ *  moves the rectangle down below the chin
+
+ *  converts the person regions to pixels.
+
+ *  returns an average rectangle size
+ * 
+ * @param {[{personName, x,y,w,h}]} persons 
+ * @param {float} gVertDisplacement Amount to move the destination rectangle up or down
+ * @returns the target rectangle size for all the persons in the photo
+ */
 function analyzeRectangles(persons, gVertDisplacement) {
     const app = require('photoshop').app;
     const gDoc = app.activeDocument;
@@ -95,8 +128,13 @@ function analyzeRectangles(persons, gVertDisplacement) {
 
 };
 
-// keep reducing the size of the average rectangle until there are no intersecting rectangles.
 
+/**
+ * keep reducing the size of the average rectangle until there are no intersecting rectangles.
+ * @param { [{personName, x,y,w,h}]} persons 
+ * @param {{width, height}} bestRect 
+ * @returns bestRect
+ */
 function reduceRectangles(persons, bestRect) {
 
     for (let k = 0; k < 5; k++) {
@@ -119,8 +157,13 @@ function reduceRectangles(persons, bestRect) {
     return bestRect;
 };
 
-// if there are two rectangles anywhere on the page that intersect, return true
-
+// 
+/**
+ * check to see if rectangles intersect
+ * @param {*} persons 
+ * @param {*} bestRect 
+ * @returns true if there are two rectangles anywhere on the page that intersect
+ */
 function isIntersect(persons, bestRect) {
     for (let i = 0; i < persons.length; i++) {
         for (let j = i + 1; j < persons.length; j++) {
@@ -133,8 +176,13 @@ function isIntersect(persons, bestRect) {
     return false;
 };
 
-// Given two rectangles, return true if they intersect.
-
+/**
+ * Given two rectangles, return true if they intersect
+ * @param {*} person1 
+ * @param {*} person2 
+ * @param {*} bestRect 
+ * @returns true if they intersec
+ */
 function intersect(person1, person2, bestRect) {
     let minAx = person1.x - bestRect.w / 2;
     let minBx = person2.x - bestRect.w / 2;
@@ -148,8 +196,12 @@ function intersect(person1, person2, bestRect) {
     return ret;
 };
 
-// calculate the points in pixels
-
+/**
+ * calculate the points in pixels
+ * @param {*} gSettings global settings
+ * @param {*} bestRect {width, height}
+ * @returns pixels to be used in font size
+ */
 function calculatePoints(gSettings, bestRect) {
     const points = gSettings.fontSize * bestRect.w / gSettings.charsPerFace;  // pixels per character
     if (points < 3.0)

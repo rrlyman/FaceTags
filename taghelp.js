@@ -81,8 +81,11 @@ function helpHtml(i) {
         '</footer>';
     return x;
 };
-
- function makeHelpDialogs() {
+/**
+ * Makes an array of Dialog HTML elements, one for each help page
+ * @returns 
+ *  */
+function makeHelpDialogs() {
     for (let i = 0; i < txt.length; i++) {
         let newDialog = document.createElement('DIALOG');
         newDialog.innerHTML = helpHtml(i);
@@ -124,10 +127,10 @@ function helpHtml(i) {
 
 };
 
-module.exports = {
-    makeHelpDialogs
-}
-// loads an example file and runs the Face Tag
+
+/**
+ * Loads an example file and runs the Face Tag
+ *  */ 
 async function tryIt() {
     const fs = require("uxp").storage.localFileSystem;
     const pluginFolder = await fs.getPluginFolder();
@@ -135,4 +138,8 @@ async function tryIt() {
     const app = require("photoshop").app;
     await app.open(theTemplate);
     await tagSingleFile();
+}
+
+module.exports = {
+    makeHelpDialogs
 }

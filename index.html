@@ -1,46 +1,48 @@
-
-
 <!DOCTYPE html>
 <html>
+
 <head>
 
-    <script src="main.js"></script> 
-    <link rel="stylesheet" href="style.css">  
- 
+  <script src="main.js"></script>
+  <link rel="stylesheet" href="style.css">
+
 </head>
-<style> 
-  .container { 
-      display: flex; 
-      justify-content: space-between; 
-      font-size : 10px;
-      padding: 10px;
-  } 
+<style>
+  .container {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    padding: 10px;
+  }
 </style>
-<body >
-  <sp-heading size = "XS">Face Tag  </sp-heading>
-  <sp-body id="layers" class = "container">
-    <div class="spectrum-ButtonGroup" >
-      <sp-button id="btnForeground" size="s" >Text Color</sp-button>
-      <sp-button id="btnBackground" size="s">Backdrop Color</sp-button> 
+
+<body>
+  <sp-heading size="XS">Face Tag </sp-heading>
+  <sp-body id="layers" class="container">
+    <div class="spectrum-ButtonGroup">
+      <sp-button id="btnForeground" size="s">Text Color</sp-button>
+      <sp-button id="btnBackground" size="s">Border Color</sp-button>
+      <sp-button id="btnStop" disabled size="s">Cancel</sp-button>
     </div>
-    <div class="spectrum-ButtonGroup" >
-    <sp-checkbox id="merge" size="s" >Merge Layers</sp-checkbox>
-    <sp-checkbox id="backStroke" size="s">Background Effects</sp-checkbox>
-  </div>
-    <p>Vertical Position</p> 
-    <sp-slider 	label="Vertical Position" id = "vSlider"></sp-slider>
-    <p>Font Size</p> 
-    <sp-slider	id = "fSlider" 	label="Font Size" variant="ramp"	>	</sp-slider>	  
-    <div class="spectrum-ButtonGroup" >
-      <sp-button id="btnOne" size="s" > Tag the Image</sp-button>
-      <sp-button id="btnMany" size="s"> Open Files</sp-button> 
-      <sp-button id="btnHelp" size="s"> Help </sp-button>    
-      </div>       
+    <div class="spectrum-ButtonGroup">
+      <sp-checkbox id="merge" size="s">Merge Layers</sp-checkbox>
+      <sp-checkbox id="backStroke" size="s">Background Effects</sp-checkbox>
+    </div>
+    <p>Vertical Position</p>
+    <sp-slider label="Vertical Position" id="vSlider"></sp-slider>
+    <p>Font Size</p>
+    <sp-slider id="fSlider" label="Font Size" variant="ramp"> </sp-slider>
+    <div class="spectrum-ButtonGroup">
+      <sp-button id="btnOne" size="s"> Tag the Image</sp-button>
+      <sp-button id="btnMany" size="s"> Open Files</sp-button>
+      <sp-button id="btnHelp" size="s"> Help </sp-button>
+    </div>
   </sp-body>
   <footer class="container">
-    <div class="spectrum-ButtonGroup" >
-   
-      </div>
+    <div class="spectrum-ButtonGroup">
+
+    </div>
   </footer>
 </body>
+
 </html>
