@@ -1,6 +1,11 @@
 
 // copywrite 2023 Richard R. Lyman
-// Post Processing: add a background around the text for more readability
+
+/** Post Processing: add a background around the text for more readability
+ * 
+ * @param {*} gSettings dictionnary containing global settings
+ * @returns Promise
+ */
 
 async function setOutsideStroke(gSettings) {
     const { executeAsModal } = require("photoshop").core;
@@ -93,8 +98,13 @@ async function setOutsideStroke_actn(gSettings) {
 
 };
 
-// get foreground and background colors for the face tags
 
+/**
+ * Convert from RGBFloatColor class to SolidColor
+ * 
+ * @param {RGBFloatColor} rgbFloat 
+ * @returns SolidColor
+ */
 function RGBFloatToSolid(rgbFloat) {
     const SolidColor = require("photoshop").app.SolidColor;
     let cl = new SolidColor();
@@ -104,8 +114,12 @@ function RGBFloatToSolid(rgbFloat) {
     return cl;
 };
 
-//var resultOfPicker;
-
+/**
+ * Execute a batchPlay command to pick up the label text color
+ * @param {string} panelTitle 
+ * @param {SolidColor} startColor The previous text color
+ * @returns Promise containing the RGBFloatColor picked from the Photoshop color picker
+ */
 async function setForeground_actn(panelTitle, startColor) {
     let psAction = require("photoshop").action;
     const openPicker =
@@ -123,21 +137,48 @@ async function setForeground_actn(panelTitle, startColor) {
             }
         ];
 
-
     return await psAction.batchPlay(openPicker, { synchronousExecution: true });
-
-
 }
 
+/**
+ * Pick up the text color for the label and put it in gSettings
+ */
 async function setForeground() {
     let resultOfPicker = await require("photoshop").core.executeAsModal(() => setForeground_actn("Pick Name Tag Foreground Color", gSettings.foreColor), { "commandName": "Set Foreground" });
-     gSettings.foreColor = RGBFloatToSolid(resultOfPicker[0]);
+    gSettings.foreColor = RGBFloatToSolid(resultOfPicker[0]);
 }
-
+/**
+ * Pick up the background border color for the label and put it in gSettings
+ */
 async function setBackground() {
-    let resultOfPicker = await require("photoshop").core.executeAsModal(() => setForeground_actn("Pick Name Tag Background Color", gSettings.backColor), { "commandName": "Set Background" });
+    let resultOfPicker = await require("photoshop").core.executeAsModal(() => setForeground_actn("Pick Name Tag Border Color", gSettings.backColor), { "commandName": "Set Background" });
     gSettings.backColor = RGBFloatToSolid(resultOfPicker[0]);
 }
-module.exports = {
-    setForeground, setBackground, setOutsideStroke
+
+
+/**
+ * picks up the metadata of the currently loaded photo in Photoshop
+ * @returns text buffer containing the metadata
+ */
+const getDocumentXMP = () => {
+    const bp = require("photoshop").action.batchPlay;
+    return bp(
+        [
+            {
+                _obj: "get",
+                _target: {
+                    _ref: [
+                        { _property: "XMPMetadataAsUTF8" },
+                        { _ref: "document", _enum: "ordinal", _value: "targetEnum" },
+                    ],
+                },
+            },
+        ],
+        { synchronousExecution: true }
+    )[0].XMPMetadataAsUTF8;
 };
+
+module.exports = {
+    setForeground, setBackground, setOutsideStroke, getDocumentXMP
+};
+
