@@ -10,8 +10,8 @@ const txt = [
     '</p> ',
 
     '<p>The rectangle information must be stored in the photo file. &nbsp;' +
-    ' One way is to select "Save Metadata to File". Another way is &nbsp;' +
-    'by pressing Ctrl+S (Windows) or Command+S (Mac OS). '+
+    ' Either, edit a copy in Photoshop with Lightroom adjustments, select "Save Metadata to File or &nbsp;' +
+    ' press Ctrl+S (Windows) or Command+S (Mac OS).</p> '+
     '<p>The metadata "RegionList" can be viewed as in Photoshop under File/File Info/ Raw Data</p>'+
     '<meta name="viewport" content="width=device-width, initial-scale=1"> '+
       '<p><img src="MetaData.png" ></p>' +    
@@ -31,13 +31,14 @@ const txt = [
     '<p>After control changes, the face tag program will be automatically rerun.' +
         '<ul>'+
             '<li>"Text Color" selects a color for the text. </li>' +
-            '<li>"Background Color" is the color of the border around the text if "Background Effects" is checked.</li>' +
+            '<li>"Background Color" is the color around the text.</li>' +
             '<li>During Face Tagging, a layer is made for each individual in the picture. To merge all the layers into one FaceTags group, check "Merge Layers".</li>'+
             '<li>After tagging, a border is drawn around the text  "Background Effects" is checked.</li>' +
+            '<li>Portrait shows the original photo on the top half and the Person names on the bottom half.</li>' +            
             '<li>"Vertical Position" moves the text label up or down.</li>'+
             '<li>"Font Size" changes the text character sizes.</li>'+
-            '<li>"Tag the Image" refreshes tagging on the image.  This deletes any existing FaceTags group.</li>'+
-            '<li>"Open Files" opens a file picker and one or more files can be loaded and tagged.</li>'+
+            '<li>"Refresh" refreshes tagging on the image.  This deletes any existing edits!</li>'+
+            '<li>"Open Files" opens a file picker and one or more files can be batch loaded and tagged.</li>'+
         '</ul>'+
     '</p> ',
     '<p>After Tagging the Faces, here are some things to try:' +
@@ -45,9 +46,9 @@ const txt = [
             ' <li> Under the Facetags group layer, open the Stroke effects to adjust the type of background. </li>'+
             ' <li> Pick different background effects, trying combinations of size and color.</li>'+            
             ' <li> If "Merge Layers" is unchecked, there will be one layer for each individual,  &nbsp;</li>' +
-            ' For instance, when clicking the "Try It" button below, there will be more than 30 layers.&nbsp;' +
               'Select one or more of these layers to change color and effects for particular individuals.</li>. '+
-            ' <li> Manually merge all the layers into the FaceTags layer via the menu item Layers/Merge Group.</li>' +            
+            ' <li> Manually merge all the layers into the FaceTags layer via the menu item Layers/Merge Group. &nbsp; '+            
+            ' NOTE: Clicking on Refresh will delete all edits by rewinding to the initial history state!</li>' +   
         '</ul>'+    
         '</p>'    ,
         '<p><img src="Mash_Goes_to_a_Wedding.png"></p>'  

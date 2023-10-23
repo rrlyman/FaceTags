@@ -61,16 +61,21 @@ async function addLayer_actn(gSettings, person, bestRect) {
  * @param {*} pEntry  dictionary containing items to be added to str
  * @returns string containing str and pEntry items
  */
+
 function displayDictionary(str, pEntry) {
     str += "{ ";
     // Best for accessing both keys and their values
     for (const [key, value] of Object.entries(pEntry)) {
-        str += key + ": \t" + value.toString() + ",\t";
+        if (typeof(value)=='object')
+            str += displayDictionary(key, value)+ ",\t";
+        else 
+            str += key + ": \t" + value.toString() + ",\t";
     }
     str += "}";
-    console.log(str);
+    //console.log(str);
     return str;
 };
+
 
 /** 
 
@@ -122,7 +127,7 @@ function analyzeRectangles(persons, gVertDisplacement) {
         "h": avgHeight
     };
     const bestRect = reduceRectangles(persons, rect);
-    displayDictionary("average Rectangle = ", rect) + displayDictionary("\tbest Rectangle = ", bestRect);
+    console.log(displayDictionary("average Rectangle = ", rect) + displayDictionary("\tbest Rectangle = ", bestRect));
 
     return bestRect;
 
@@ -210,5 +215,5 @@ function calculatePoints(gSettings, bestRect) {
 };
 
 module.exports = {
-analyzeRectangles, addLayer
+analyzeRectangles, addLayer, displayDictionary
 };

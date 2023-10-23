@@ -1,6 +1,8 @@
 
 // copywrite 2023 Richard R. Lyman
 
+const { displayDictionary } = require('./tagAddLayer');
+
 /** Post Processing: add a background around the text for more readability
  * 
  * @param {*} gSettings dictionnary containing global settings
@@ -8,13 +10,11 @@
  */
 
 async function setOutsideStroke(gSettings) {
-    const { executeAsModal } = require("photoshop").core;
-    await executeAsModal(() => setOutsideStroke_actn(gSettings), { "commandName": "Adding Effect" });
+      await executeAsModal(() => setOutsideStroke_actn(gSettings), { "commandName": "Adding Effect" });
 };
 
 async function setOutsideStroke_actn(gSettings) {
     const app = require('photoshop').app;
-    const { batchPlay } = require("photoshop").action;
 
     const result = await batchPlay(
         [
@@ -111,49 +111,53 @@ function RGBFloatToSolid(rgbFloat) {
     cl.rgb.red = rgbFloat.RGBFloatColor.red;
     cl.rgb.green = rgbFloat.RGBFloatColor.grain;
     cl.rgb.blue = rgbFloat.RGBFloatColor.blue;
+    console.log(cl.rgb.hexValue);
     return cl;
 };
 
+var resultOfPicker;
 /**
  * Execute a batchPlay command to pick up the label text color
  * @param {string} panelTitle 
  * @param {SolidColor} startColor The previous text color
  * @returns Promise containing the RGBFloatColor picked from the Photoshop color picker
  */
-async function setForeground_actn(panelTitle, startColor) {
-    let psAction = require("photoshop").action;
-    const openPicker =
-        [
+ async function setColor_actn(panelTitle, startColor) {
+   resultOfPicker = await batchPlay(
+         [
             {
-                _target: { _ref: "application" },
-                _obj: "showColorPicker",
-                context: panelTitle,
-                color: {
-                    _obj: 'RGBColor',
-                    red: startColor.rgb.red,
-                    green: startColor.rgb.green,
-                    blue: startColor.rgb.blue,
-                },
+                  _target: { _ref: "application" },
+                  _obj: "showColorPicker",
+                  context: panelTitle,
+                  color: {
+                     _obj: 'RGBColor', 
+                      red: startColor.rgb.red,
+                      grain: startColor.rgb.green,
+                      blue: startColor.rgb.blue
+                  }
             }
-        ];
+      ],
+      {synchronousExecution: true}
+   );
+   return resultOfPicker;
+};
 
-    return await psAction.batchPlay(openPicker, { synchronousExecution: true });
-}
 
 /**
  * Pick up the text color for the label and put it in gSettings
  */
+
 async function setForeground() {
-    let resultOfPicker = await require("photoshop").core.executeAsModal(() => setForeground_actn("Pick Name Tag Foreground Color", gSettings.foreColor), { "commandName": "Set Foreground" });
-    gSettings.foreColor = RGBFloatToSolid(resultOfPicker[0]);
-}
+   await executeAsModal(() => setColor_actn("Pick Text Foreground Color", gSettings.foreColor), {"commandName": "Pick Name Tag Foreground Color"});
+   gSettings.foreColor = RGBFloatToSolid(resultOfPicker[0]);
+};
 /**
  * Pick up the background border color for the label and put it in gSettings
  */
 async function setBackground() {
-    let resultOfPicker = await require("photoshop").core.executeAsModal(() => setForeground_actn("Pick Name Tag Border Color", gSettings.backColor), { "commandName": "Set Background" });
-    gSettings.backColor = RGBFloatToSolid(resultOfPicker[0]);
-}
+   await executeAsModal(() => setColor_actn("Pick Text Background Color",gSettings.backColor), {"commandName": "Pick Name Tag Background Color"});
+   gSettings.backColor = RGBFloatToSolid(resultOfPicker[0]);
+};
 
 
 /**
@@ -161,8 +165,7 @@ async function setBackground() {
  * @returns text buffer containing the metadata
  */
 const getDocumentXMP = () => {
-    const bp = require("photoshop").action.batchPlay;
-    return bp(
+    return batchPlay(
         [
             {
                 _obj: "get",
@@ -172,13 +175,279 @@ const getDocumentXMP = () => {
                         { _ref: "document", _enum: "ordinal", _value: "targetEnum" },
                     ],
                 },
-            },
-        ],
+            },      ],
         { synchronousExecution: true }
     )[0].XMPMetadataAsUTF8;
 };
 
+
+async function selectBackgroundLayer_actn() {
+   const result = await batchPlay(
+      [
+         {
+            _obj: "select",
+            _target: [
+               {
+                  _ref: "layer",
+                  _name: "Background"
+               }
+            ],
+            makeVisible: false,
+            layerID: [
+               1
+            ],
+            _options: {
+               dialogOptions: "dontDisplay"
+            }
+         }
+      ],
+      {}
+   );
+};
+
+async function selectBackgroundLayer() {
+   await executeAsModal(selectBackgroundLayer_actn, {"commandName": "Action Commands"});
+};
+
+
+async function copyBackGroundLayer_actn() {
+   const result = await batchPlay(
+      [
+         {
+            _obj: "copyToLayer",
+            _options: {
+               dialogOptions: "dontDisplay"
+            }
+         }
+      ],
+      {}
+   );
+};
+
+async function copyBackGroundLayer() {
+   await executeAsModal(copyBackGroundLayer_actn, {"commandName": "Action Commands"});
+};
+
+
+
+async function reduceOpacity_actn() {
+    const result = await batchPlay(
+       [
+          {
+             _obj: "set",
+             _target: [
+                {
+                   _ref: "layer",
+                   _enum: "ordinal",
+                   _value: "targetEnum"
+                }
+             ],
+             to: {
+                _obj: "layer",
+                opacity: {
+                   _unit: "percentUnit",
+                   _value: 25
+                }
+             },
+             _options: {
+                dialogOptions: "dontDisplay"
+             }
+          }
+       ],
+       {}
+    );
+ };
+ 
+ async function reduceOpacity() {
+    await executeAsModal(reduceOpacity_actn, {"commandName": "Action Commands"});
+ };
+
+ 
+async function addSelectFaceTags_actn() {
+    const result = await batchPlay(
+       [
+          {
+             _obj: "select",
+             _target: [
+                {
+                   _ref: "layer",
+                   _name: "FaceTags"
+                }
+             ],
+             makeVisible: false,
+             selectionModifier: {
+               _enum: "selectionModifierType",
+               _value: "addToSelection"
+            },
+             layerID: [
+                2
+             ],
+             _options: {
+                dialogOptions: "dontDisplay"
+             }
+          }
+       ],
+       {}
+    );
+ };
+ 
+ async function addSelectFaceTags() {
+    await executeAsModal(addSelectFaceTags_actn, {"commandName": "Action Commands"});
+ };
+
+
+async function makeAnArtboard_actn(dWidth, dHeight) {
+    const result = await batchPlay(
+       [
+          {
+             _obj: "make",
+             _target: [
+                {
+                   _ref: "artboardSection"
+                }
+             ],
+             from: {
+                _ref: "layer",
+                _enum: "ordinal",
+                _value: "targetEnum"
+             },
+             layerSectionStart: 36,
+             layerSectionEnd: 37,
+             name: "Artboard 1",
+             artboardRect: {
+                _obj: "classFloatRect",
+                top: 0,
+                left: 0,
+                bottom: dHeight,
+                right: dWidth
+             },
+             _options: {
+                dialogOptions: "dontDisplay"
+             }
+          }
+       ],
+       {}
+    );
+ };
+
+ async function makeAnArtboard(dWidth, dHeight) {
+    await executeAsModal(() => makeAnArtboard_actn(dWidth, dHeight), {"commandName": "Action Commands"});
+ };
+ 
+ 
+async function selectBackgroundCopy_actn() {
+    const result = await batchPlay(
+       [
+          {
+             _obj: "select",
+             _target: [
+                {
+                   _ref: "layer",
+                   _name: "Background copy"
+                }
+             ],
+             makeVisible: false,
+             layerID: [
+                37
+             ],
+             _options: {
+                dialogOptions: "dontDisplay"
+             }
+          }
+       ],
+       {}
+    );
+ };
+ 
+ async function selectBackgroundCopy() {
+    await executeAsModal(selectBackgroundCopy_actn, {"commandName": "Action Commands"});
+ };
+ 
+async function moveGrayImage_actn(dHeight) {
+    const result = await batchPlay(
+       [
+          {
+             _obj: "move",
+             _target: [
+                {
+                   _ref: "layer",
+                   _enum: "ordinal",
+                   _value: "targetEnum"
+                }
+             ],
+             to: {
+                _obj: "offset",
+                horizontal: {
+                   _unit: "pixelsUnit",
+                   _value: 0
+                },
+                vertical: {
+                   _unit: "pixelsUnit",
+                   _value: dHeight
+                }
+             },
+             _options: {
+                dialogOptions: "dontDisplay"
+             }
+          }
+       ],
+       {}
+    );
+ };
+ 
+ async function moveGrayImage(dHeight) {
+    await executeAsModal(() => moveGrayImage_actn(dHeight), {"commandName": "Action Commands"});
+ };
+ 
+ // Events recognized as notifiers are not re-playable in most of the cases. There is high chance that generated code won't work.
+
+
+
+async function linkLayers_actn() {
+   const result = await batchPlay(
+      [
+         {
+            _obj: "linkSelectedLayers",
+            _target: [
+               {
+                  _ref: "layer",
+                  _enum: "ordinal",
+                  _value: "targetEnum"
+               }
+            ],
+            _options: {
+               dialogOptions: "dontDisplay"
+            }
+         }
+      ],
+      {}
+   );
+};
+
+async function linkLayers() {
+   await executeAsModal(linkLayers_actn, {"commandName": "Action Commands"});
+};
+
+/**
+ * Make an artboard, twice as tall as the original photo, containing the original photo on the top half
+ * and a dimly gray version of the photo ont he bottom half with the Person names on each person
+ * @param {*} gDoc 
+ */
+
+ async function makeAPortrait(gDoc) {
+    let dWidth = gDoc.width;
+    let dHeight = gDoc.height;
+    await selectBackgroundLayer();
+    await copyBackGroundLayer();
+    await reduceOpacity();  
+    await addSelectFaceTags();
+    await linkLayers() ;
+    await makeAnArtboard(dWidth, 2*dHeight);
+    await selectBackgroundCopy();
+    await moveGrayImage(dHeight);
+};
+
 module.exports = {
-    setForeground, setBackground, setOutsideStroke, getDocumentXMP
+    setForeground, setBackground, setOutsideStroke, getDocumentXMP, makeAPortrait
 };
 

@@ -4,11 +4,10 @@
 const { getDocumentXMP} = require("./tagBatchPlay.js");
 /**
  * Picks up the metadaa for the photo, parses it to find the People in Metadata Working Group format
- * 
- * @param {string} filePath Full File Path
+ *  * 
  * @returns [{personName, x, y, w, h}] Returns a 0 length array if no metadata is found
  */
-function readPersonsFromMetadata(filePath) {
+function readPersonsFromMetadata() {
 
     const xmp = require("uxp").xmp;
     const xmpEntry = require('uxp').storage.Entry;
