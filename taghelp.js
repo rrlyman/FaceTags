@@ -3,8 +3,7 @@
 const txt = [
     '<p>In Lightroom Classic in the Library Loupe view, a rectangle will appear around each person\'s face.&nbsp;' +
     'If there is no rectangle, then click and drag to draw one.' +
-    '</p> ' ,
-
+    '</p> ' +
     '<p>Type a name or other text into the box above the rectangle.&nbsp;' +
     'This is the text that will show up as a label for each person.'+
     '</p> ',
@@ -31,14 +30,15 @@ const txt = [
     '<p>After control changes, the face tag program will be automatically rerun.' +
         '<ul>'+
             '<li>"Text Color" selects a color for the text. </li>' +
-            '<li>"Background Color" is the color around the text.</li>' +
-            '<li>During Face Tagging, a layer is made for each individual in the picture. To merge all the layers into one FaceTags group, check "Merge Layers".</li>'+
-            '<li>After tagging, a border is drawn around the text  "Background Effects" is checked.</li>' +
+            '<li>"Border Color" is the color around the text.</li>' +
+            '<li>To leave a layer for each person, leave "Merge Layers" unchecked.</li>'+
+            '<li>After tagging, a border is drawn around the text if "Background Effects" is checked.</li>' +
             '<li>Portrait shows the original photo on the top half and the Person names on the bottom half.</li>' +            
             '<li>"Vertical Position" moves the text label up or down.</li>'+
             '<li>"Font Size" changes the text character sizes.</li>'+
             '<li>"Refresh" refreshes tagging on the image.  This deletes any existing edits!</li>'+
-            '<li>"Open Files" opens a file picker and one or more files can be batch loaded and tagged.</li>'+
+            '<li>"Files" opens a file picker and one or more files can be loaded and tagged.</li>'+
+            '<li>"Folders" opens a folder picker. Select the parent folder containing the images. A new folder tree, "Facetags_n"  containing the tagged images will be created under the parent folder.</li>'+            
         '</ul>'+
     '</p> ',
     '<p>After Tagging the Faces, here are some things to try:' +

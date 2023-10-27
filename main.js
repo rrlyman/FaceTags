@@ -208,7 +208,7 @@ async function tagBatchFiles(sourceEntry, targetEntry ) {
             if (aDoc != null) {
                 let persons = readPersonsFromMetadata(aDoc.path);
                 if ((persons.length>0) && ( !stopTag)) {   
-                    await faceTagTheImage(persons);
+                    await faceTagTheImage(persons);             
                     await executeAsModal(() =>  aDoc.flatten(), { "commandName": "Flattening" });          
                     let saveEntry = await targetEntry.createFile(aDoc.name);
                     await executeAsModal(() =>   aDoc.saveAs.png(saveEntry), { "commandName": "Saving" }); 
@@ -282,7 +282,7 @@ async function faceTagTheImage(persons) {
     if (gSettings.portraitMode)
         await makeAPortrait(gDoc);
 
-
+    await new Promise(r => setTimeout(r, 200));    // make to see the result and click the Cancel Button  
 };
 
 // load  persistent data
