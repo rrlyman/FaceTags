@@ -104,7 +104,7 @@ async function tagSingleFile() {
         alert("No file is loaded. In PhotoShop Classic, load a file before running the script!");
     } else {
         await resetHistoryState(aDoc); // erases all previous edits
-        let persons = readPersonsFromMetadata();
+        let persons = readPersonsFromMetadata(aDoc.path);
         await faceTagTheImage(persons);
     }
 };
