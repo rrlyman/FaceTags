@@ -7,7 +7,7 @@
  *  * 
  * @returns [{personName, x, y, w, h}] Returns a 0 length array if no metadata is found
  */
-function readPersonsFromMetadata() {
+function readPersonsFromMetadata(filePath) {
 
     const xmp = require("uxp").xmp;
     const xmpEntry = require('uxp').storage.Entry;
@@ -15,15 +15,16 @@ function readPersonsFromMetadata() {
     let persons = Array();
 
     // NOTE: the x and y point in the metadata is the center of the rectangle for Adobe face Areas. i.e. (x,y) = (top-bottom)/2, (right-left)/2
-    // Elsewhere in this program, we change the anchor point to be the center of the top of the rectangle.  This establishes a fixed reference point below the chin
+    // Elsewhere in this program, we change the anchor point to be the center of the top of the rectangle. 
 
     // There are two ways to get the Metadata; from the file directly with xmpFile or via BatchPlay from Photoshop
-    // Either way should return the same data.
+    // Either way should return the same data.  
+    // The advantage of reading directly from the file is that the metadata can be read without incurring the overhead of loading the photo into photoshop
 
-    //const xmpFile = new xmp.XMPFile(filePath, xmp.XMPConst.FILE_JPEG, xmp.XMPConst.OPEN_FOR_READ); // not listed as async
-    //const xmpMeta = xmpFile.getXMP();  // not listed as async
+    const xmpFile = new xmp.XMPFile(filePath, xmp.XMPConst.FILE_JPEG, xmp.XMPConst.OPEN_FOR_READ); // not listed as async
+    const xmpMeta = xmpFile.getXMP();  // not listed as async
     //const xmpMetaFromDocument = getDocumentXMP();
-    const xmpMeta = new xmp.XMPMeta(getDocumentXMP());
+    //const xmpMeta = new xmp.XMPMeta(getDocumentXMP());
     const ns = "http://www.metadataworkinggroup.com/schemas/regions/";
     //const ns2 = "http://ns.adobe.com/xmp/sType/Area#";
 
@@ -53,7 +54,7 @@ function readPersonsFromMetadata() {
             "h": h
         };
         persons.push(person);
-    }
+    };
     return persons;
 };
 
@@ -61,22 +62,22 @@ function readPersonsFromMetadata() {
  * picks up the metadata of the currently loaded photo in Photoshop
  * @returns text buffer containing the metadata
  */
-const getDocumentXMP = () => {
-    const {batchPlay} = require("photoshop").action;    
-    return batchPlay(
-        [
-            {
-                _obj: "get",
-                _target: {
-                    _ref: [
-                        { _property: "XMPMetadataAsUTF8" },
-                        { _ref: "document", _enum: "ordinal", _value: "targetEnum" },
-                    ],
-                },
-            },      ],
-        { synchronousExecution: true }
-    )[0].XMPMetadataAsUTF8;
-};
+// const getDocumentXMP = () => {
+//     const {batchPlay} = require("photoshop").action;    
+//     return batchPlay(
+//         [
+//             {
+//                 _obj: "get",
+//                 _target: {
+//                     _ref: [
+//                         { _property: "XMPMetadataAsUTF8" },
+//                         { _ref: "document", _enum: "ordinal", _value: "targetEnum" },
+//                     ],
+//                 },
+//             },      ],
+//         { synchronousExecution: true }
+//     )[0].XMPMetadataAsUTF8;
+// };
 
 
 module.exports = {

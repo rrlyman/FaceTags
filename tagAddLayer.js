@@ -54,7 +54,7 @@ async function addLayer_actn(gSettings, person, bestRect) {
     newLayer.textItem.characterStyle.color = gSettings.foreColor;
 };
 
-  
+
 /**
  * a debugging aid to list a dictionary contents. 
  * @param {*} str string to be prepended to the output
@@ -66,11 +66,11 @@ function displayDictionary(str, pEntry) {
     str += "{ ";
     // Best for accessing both keys and their values
     for (const [key, value] of Object.entries(pEntry)) {
-        if (typeof(value)=='object')
-            str += displayDictionary(key, value)+ ", ";
-        else if (typeof(value) == "number")
-            str += key + ": " +value.toLocaleString('en-US', {maximumFractionDigits: 2}) + ', ';
-        else 
+        if (typeof (value) == 'object')
+            str += displayDictionary(key, value) + ", ";
+        else if (typeof (value) == "number")
+            str += key + ": " + value.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ', ';
+        else
             str += key + ": " + value.toString() + ", ";
     }
     str += "}";
@@ -143,24 +143,34 @@ function analyzeRectangles(persons, gVertDisplacement) {
  * @returns bestRect
  */
 function reduceRectangles(persons, bestRect) {
-
+    const app = require('photoshop').app;
+    const gDoc = app.activeDocument;
+    let rtn;
     for (let k = 0; k < 5; k++) {
         if (!isIntersect(persons, bestRect))
             break;
-        // deflate            
+        // deflate   
         bestRect = {
             "w": bestRect.w * .9,
             "h": bestRect.h * .9
         };
     };
 
-    // allow about 20% overlap    
+    // if a single head shot, the rectangle hits the bottom of the screen, so move it up.
 
-    bestRect = {
-        "w": bestRect.w * 1.2,
-        "h": bestRect.h * 1.2
-    };
-
+    if ((persons[0].y + bestRect.h / 2) > gDoc.height) {
+        console.log(persons[0].name + " hits the bottom " );
+        persons[0].y = gDoc.height - .1 * bestRect.h ;
+        bestRect = {
+            "w": bestRect.w * .4,
+            "h": bestRect.h * .4
+        };
+    } else {
+        bestRect = {    // allow about 20% overlap    
+            "w": bestRect.w * 1.2,
+            "h": bestRect.h * 1.2
+        };
+    }
     return bestRect;
 };
 
@@ -169,13 +179,15 @@ function reduceRectangles(persons, bestRect) {
  * check to see if rectangles intersect
  * @param {*} persons 
  * @param {*} bestRect 
- * @returns true if there are two rectangles anywhere on the page that intersect
+ * @returns true if there are two rectangles anywhere on the page that intersect,
  */
 function isIntersect(persons, bestRect) {
+
     for (let i = 0; i < persons.length; i++) {
+
         for (let j = i + 1; j < persons.length; j++) {
             if (intersect(persons[i], persons[j], bestRect)) {
-                //console.log(persons[i].name + " intersects " + persons[j].name);
+                console.log(persons[i].name + " intersects " + persons[j].name);
                 return true;
             }
         }
@@ -191,6 +203,7 @@ function isIntersect(persons, bestRect) {
  * @returns true if they intersec
  */
 function intersect(person1, person2, bestRect) {
+
     let minAx = person1.x - bestRect.w / 2;
     let minBx = person2.x - bestRect.w / 2;
     let maxAx = person1.x + bestRect.w / 2;
@@ -199,6 +212,7 @@ function intersect(person1, person2, bestRect) {
     let minBy = person2.y;
     let maxAy = person1.y + bestRect.h;
     let maxBy = person2.y + bestRect.h;
+
     const ret = (maxAx >= minBx) && (minAx <= maxBx) && (minAy <= maxBy) && (maxAy >= minBy);
     return ret;
 };
@@ -217,5 +231,5 @@ function calculatePoints(gSettings, bestRect) {
 };
 
 module.exports = {
-analyzeRectangles, addLayer, displayDictionary
+    analyzeRectangles, addLayer, displayDictionary
 };

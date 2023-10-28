@@ -165,53 +165,65 @@ function entryTypeIsOK (entry) {
  */
 
 let recursiveLevel = 0;
-async function tagBatchFiles(sourceEntry, targetEntry ) {
+/**
+ * 
+ * @param {*} originalPhotosFolder       pointer that is navigating the folder tree with the original photos
+ * @param {*} faceTaggedPhotosFolder     pointer that is navigating the folder tree containing the results of the faceTagging
+ * @returns 
+ */
+async function tagBatchFiles(originalPhotosFolder, faceTaggedPhotosFolder ) {
     const lfs = require('uxp').storage.localFileSystem;
     const app = require('photoshop').app;
  
     dontAsk = true;
     console.log("entering = "+recursiveLevel);
     recursiveLevel++;
-    if (sourceEntry==null) {
 
-        sourceEntry = await lfs.getFolder();
-        const entriesX= await sourceEntry.getEntries();
+    if (originalPhotosFolder==null) {
+
+        originalPhotosFolder = await lfs.getFolder();
+        if (originalPhotosFolder==null) {  // null if user cancels dialog
+            enableButtons();
+            return;
+        }        
+        /**
+         * Determine the suffix of the FaceTaggedPhotos folder by finding previous versions and adding 1 to the _n suffix of the folder name.
+         */
+        const ents = await originalPhotosFolder.getEntries();
         let iMax = 0;
-        for (let i1 = 0; i1 < entriesX.length ; i1++) {
-            if (entriesX[i1].name.startsWith("FaceTaggedPhotos")){
-                let results = entriesX[i1].name.split("_");
+        for (let i1 = 0; i1 < ents.length ; i1++) {
+            if (ents[i1].name.startsWith("FaceTaggedPhotos")){
+                let results = ents[i1].name.split("_");
                 let x = Number(results[1])
-                console.log("suf "+x);
                 if ( x> iMax) iMax = x;
             }
         }
         iMax++;
         let faceName ="FaceTaggedPhotos_" + iMax.toString();     
-        targetEntry = await sourceEntry.createFolder(faceName);
+        faceTaggedPhotosFolder = await originalPhotosFolder.createFolder(faceName);
 
     }  else 
-        targetEntry = await targetEntry.createFolder(sourceEntry.name)  ;
+        // traverse the FaceTaggedPhotos folder with an identical folder names as the original folder tree
+        faceTaggedPhotosFolder = await faceTaggedPhotosFolder.createFolder(originalPhotosFolder.name)  ;
     
-    const entries = await sourceEntry.getEntries();
+    const entries = await originalPhotosFolder.getEntries();
     for (let i = 0; (i < entries.length) && (!stopTag); i++) {
-        const entry = entries[i];
-        //console.log(entry.nativePath)   ;     
-        if (entry.isFolder && ! entry.name.startsWith("FaceTaggedPhotos"))
+        const entry = entries[i];;     
+        if (entry.isFolder && (! entry.name.startsWith("FaceTaggedPhotos")) && (! entry.name.startsWith(".")) )
         {                 
-            await tagBatchFiles(entry, targetEntry);
+            await tagBatchFiles(entry, faceTaggedPhotosFolder); // make a new folder in the FaceTaggedPhotos tree 
         } else {
-            if (!entryTypeIsOK (entry)) 
+            if (!entryTypeIsOK (entry)) // skip over unsupported photo file types
                 continue;
-
-            await executeAsModal(() => app.open(entry), { "commandName": "Opening batched File" });
-            let aDoc = app.activeDocument;
-            if (aDoc != null) {
-                let persons = readPersonsFromMetadata(aDoc.path);
-                if ((persons.length>0) && ( !stopTag)) {   
-                    await faceTagTheImage(persons);             
-                    await executeAsModal(() =>  aDoc.flatten(), { "commandName": "Flattening" });          
-                    let saveEntry = await targetEntry.createFile(aDoc.name);
-                    await executeAsModal(() =>   aDoc.saveAs.png(saveEntry), { "commandName": "Saving" }); 
+            let persons = readPersonsFromMetadata(entry.nativePath);
+             if ((persons.length>0) && ( !stopTag)) {   
+                    await executeAsModal(() => app.open(entry), { "commandName": "Opening batched File" });
+                    let aDoc = app.activeDocument;
+                    if (aDoc != null) {                    
+                        await faceTagTheImage(persons);             
+                        await executeAsModal(() =>  aDoc.flatten(), { "commandName": "Flattening" });   // required to save png       
+                        let saveEntry = await faceTaggedPhotosFolder.createFile(aDoc.name);
+                        await executeAsModal(() =>   aDoc.saveAs.png(saveEntry), { "commandName": "Saving" }); 
                 }
                 await executeAsModal(() =>   aDoc.closeWithoutSaving(), { "commandName": "Closing" });                 
             }
@@ -220,7 +232,6 @@ async function tagBatchFiles(sourceEntry, targetEntry ) {
     recursiveLevel--;
     console.log("exiting level = " + recursiveLevel);    
     if (recursiveLevel == 0){
-        console.log("enabling buttons"); 
         enableButtons();   // disable the Cancel button and enable the others 
     }
 };
@@ -237,9 +248,7 @@ async function faceTagTheImage(persons) {
 
     const core = require('photoshop').core;
     const app = require('photoshop').app;
-    const actn = require('photoshop').action;
-    const constants = require("photoshop").constants;
-
+    
     let gDoc = app.activeDocument;
 
     if ((persons != undefined) && (persons.length <= 0)) {
@@ -277,12 +286,12 @@ async function faceTagTheImage(persons) {
     // apply backdrop effects
 
     if (gSettings.backStroke)
-        await setOutsideStroke(gSettings);   // add background around the text
+        await setOutsideStroke(gSettings);   
 
     if (gSettings.portraitMode)
         await makeAPortrait(gDoc);
 
-    await new Promise(r => setTimeout(r, 200));    // make to see the result and click the Cancel Button  
+    await new Promise(r => setTimeout(r, 200));    // required to give time process Cancel Button  
 };
 
 // load  persistent data
