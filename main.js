@@ -98,21 +98,22 @@ document.getElementById("fSlider").addEventListener("click", evt => {
  */
 async function openAndTagFileFromDisk(entry) {
     const app = require('photoshop').app;
-   
+
     if (!entryTypeIsOK(entry)) // skip over unsupported photo file types
         return false;
-    await executeAsModal(() => app.open(entry), { "commandName": "Opening batched File" });
-    let aDoc = app.activeDocument;
-    if (aDoc != null) {
-        let persons = readPersonsFromMetadata(entry.nativePath);
-        if ((persons.length > 0) && (!stopTag)) {
+    let persons = readPersonsFromMetadata(entry.nativePath);
+    if ((persons.length > 0) && (!stopTag)) {
+        await executeAsModal(() => app.open(entry), { "commandName": "Opening batched File" });
+        let aDoc = app.activeDocument;
+        if (aDoc != null) {
             await faceTagTheImage(persons);
-        } else { 
-             await executeAsModal(() => aDoc.closeWithoutSaving(), { "commandName": "Closing" });
-             await new Promise(r => setTimeout(r, 200));    // required to give time process Cancel Button               
-             return false;
+        } else {
+            await executeAsModal(() => aDoc.closeWithoutSaving(), { "commandName": "Closing" });
+            await new Promise(r => setTimeout(r, 200));    // required to give time process Cancel Button               
+            return false;
         }
-    }
+    } else
+        return false;
     await new Promise(r => setTimeout(r, 200));    // required to give time process Cancel Button  
     return true;
 }
@@ -169,23 +170,22 @@ async function tagMultiFiles() {
  * Annotates each file with the face tag labels for each person found in the file metadata 
  */
 
-let recursiveLevel = 0;
+
 /**
  * 
- * @param {*} originalPhotosFolder       pointer that is navigating the folder tree with the original photos
- * @param {*} faceTaggedPhotosFolder     pointer that is navigating the folder tree containing the results of the faceTagging
+ * @param {*} originalPhotosFolder       Pointer that is navigating the folder tree with the original photos.
+ * @param {*} faceTaggedPhotosFolder     Pointer that is navigating the folder tree containing the results of the faceTagging.
  * @returns 
  */
 async function tagBatchFiles(originalPhotosFolder, faceTaggedPhotosFolder) {
     const lfs = require('uxp').storage.localFileSystem;
     const app = require('photoshop').app;
+    let topRecursionLevel = false;
 
     dontAsk = true;
-    console.log("entering = " + recursiveLevel);
-    recursiveLevel++;
 
     if (originalPhotosFolder == null) {
-
+        topRecursionLevel = true;
         originalPhotosFolder = await lfs.getFolder();
         if (originalPhotosFolder == null) {  // null if user cancels dialog
             enableButtons();
@@ -225,18 +225,30 @@ async function tagBatchFiles(originalPhotosFolder, faceTaggedPhotosFolder) {
             let saveEntry = await faceTaggedPhotosFolder.createFile(aDoc.name); // same name as original but store on tagged tree.
             await executeAsModal(() => aDoc.saveAs.png(saveEntry), { "commandName": "Saving" });
             await executeAsModal(() => aDoc.closeWithoutSaving(), { "commandName": "Closing" });
-
         }
     };
-    
-    
-    recursiveLevel--;
-    console.log("exiting level = " + recursiveLevel);
-    if (recursiveLevel == 0) {
+
+    if (topRecursionLevel) {
+        console.log("topRecursionLevel");
+        deleteEmptyFolders(faceTaggedPhotosFolder);
         enableButtons();   // disable the Cancel button and enable the others 
     }
 };
-
+/**
+ * Recursively delete any Folders with zero Folders and Files.
+ * @param {*} entry Folder entry to be tested for deletion.
+ */
+async function deleteEmptyFolders(folderEntry) {
+    const entries = await folderEntry.getEntries();
+    if (entries.length == 0) {
+        await folderEntry.delete();
+    } else {
+        for (let i = 0; (i < entries.length) && (!stopTag); i++) {
+            if (entries[i].isFolder)
+                await deleteEmptyFolders(entries[i]);
+        }
+    }
+}
 
 /**
  *  create face labels for each person rectangle found in the document metadata
@@ -264,7 +276,7 @@ async function faceTagTheImage(persons) {
 
     // Remove the old FaceTags Group
 
-    let faceTagLayer ;
+    let faceTagLayer;
     while ((faceTagLayer = aDoc.layers.getByName("FaceTags")) != null) {
 
         if (faceTagLayer.layers != null) {
@@ -278,7 +290,7 @@ async function faceTagTheImage(persons) {
 
     // start with clean document  
 
-    await executeAsModal(() => aDoc.flatten(), { "commandName": "Flattening" });  
+    await executeAsModal(() => aDoc.flatten(), { "commandName": "Flattening" });
 
     //  find a common face rectangle size that doesn't intersect the other face rectangles too much, and move the rectangle below the chin
 
@@ -371,11 +383,13 @@ function enableButtons() {
 function entryTypeIsOK(entry) {
 
     let flag = false;
-    let fTypes = ['bmp', /*'gif', */'jpg', 'jpeg', 'png', 'psb', 'psd', 'tif', 'tiff'];
-    fTypes.forEach((fType) => {
-        if (entry.name.toLowerCase().endsWith(fType))
-            flag = true;
-    });
+    if (!entry.isFolder) {
+        let fTypes = ['.bmp', /*'gif', */'.jpg', '.jpeg', '.png', '.psb', '.psd', '.tif', '.tiff'];
+        fTypes.forEach((fType) => {
+            if (entry.name.toLowerCase().endsWith(fType))
+                flag = true;
+        });
+    }
     return flag;
 }
 /**

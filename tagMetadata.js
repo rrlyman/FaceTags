@@ -23,9 +23,9 @@ function readPersonsFromMetadata(filePath) {
     // The disadvatnge is that, if a new document is created from history, then a file has not yet been written to the disk, but there is metadata 
     // available if read via photoshop
 
-    //const xmpFile = new xmp.XMPFile(filePath, xmp.XMPConst.FILE_JPEG, xmp.XMPConst.OPEN_FOR_READ); // not listed as async
-    //const xmpMeta = xmpFile.getXMP();  // not listed as async
-    const xmpMeta = new xmp.XMPMeta(getDocumentXMP());
+    const xmpFile = new xmp.XMPFile(filePath, xmp.XMPConst.FILE_JPEG, xmp.XMPConst.OPEN_FOR_READ); // not listed as async
+    const xmpMeta = xmpFile.getXMP();  // not listed as async
+    //const xmpMeta = new xmp.XMPMeta(getDocumentXMP());
     const ns = "http://www.metadataworkinggroup.com/schemas/regions/";
     //const ns2 = "http://ns.adobe.com/xmp/sType/Area#";
 
@@ -56,6 +56,7 @@ function readPersonsFromMetadata(filePath) {
         };
         persons.push(person);
     };
+    xmpFile.closeFile(0);
     return persons;
 };
 
