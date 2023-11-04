@@ -20,11 +20,12 @@ function readPersonsFromMetadata(filePath) {
     // There are two ways to get the Metadata; from the file directly with xmpFile or via BatchPlay from Photoshop
     // Either way should return the same data.  
     // The advantage of reading directly from the file is that the metadata can be read without incurring the overhead of loading the photo into photoshop
+    // The disadvatnge is that, if a new document is created from history, then a file has not yet been written to the disk, but there is metadata 
+    // available if read via photoshop
 
-    const xmpFile = new xmp.XMPFile(filePath, xmp.XMPConst.FILE_JPEG, xmp.XMPConst.OPEN_FOR_READ); // not listed as async
-    const xmpMeta = xmpFile.getXMP();  // not listed as async
-    //const xmpMetaFromDocument = getDocumentXMP();
-    //const xmpMeta = new xmp.XMPMeta(getDocumentXMP());
+    //const xmpFile = new xmp.XMPFile(filePath, xmp.XMPConst.FILE_JPEG, xmp.XMPConst.OPEN_FOR_READ); // not listed as async
+    //const xmpMeta = xmpFile.getXMP();  // not listed as async
+    const xmpMeta = new xmp.XMPMeta(getDocumentXMP());
     const ns = "http://www.metadataworkinggroup.com/schemas/regions/";
     //const ns2 = "http://ns.adobe.com/xmp/sType/Area#";
 
@@ -62,22 +63,22 @@ function readPersonsFromMetadata(filePath) {
  * picks up the metadata of the currently loaded photo in Photoshop
  * @returns text buffer containing the metadata
  */
-// const getDocumentXMP = () => {
-//     const {batchPlay} = require("photoshop").action;    
-//     return batchPlay(
-//         [
-//             {
-//                 _obj: "get",
-//                 _target: {
-//                     _ref: [
-//                         { _property: "XMPMetadataAsUTF8" },
-//                         { _ref: "document", _enum: "ordinal", _value: "targetEnum" },
-//                     ],
-//                 },
-//             },      ],
-//         { synchronousExecution: true }
-//     )[0].XMPMetadataAsUTF8;
-// };
+ const getDocumentXMP = () => {
+    const {batchPlay} = require("photoshop").action;    
+    return batchPlay(
+        [
+            {
+                _obj: "get",
+                _target: {
+                    _ref: [
+                        { _property: "XMPMetadataAsUTF8" },
+                        { _ref: "document", _enum: "ordinal", _value: "targetEnum" },
+                    ],
+                },
+            },      ],
+        { synchronousExecution: true }
+    )[0].XMPMetadataAsUTF8;
+};
 
 
 module.exports = {

@@ -1,10 +1,10 @@
 
 // copywrite 2023 Richard R. Lyman
-const {executeAsModal} = require("photoshop").core;
-const {batchPlay} = require("photoshop").action;
+const { executeAsModal } = require("photoshop").core;
+const { batchPlay } = require("photoshop").action;
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
 const { makeHelpDialogs } = require("./tagHelp.js");
-const { setForeground, setBackground, setOutsideStroke, makeAPortrait } = require("./tagBatchPlay.js");
+const { setForeground, setBackground, setOutsideStroke, makeAPortrait, newDocumentFromHistory } = require("./tagBatchPlay.js");
 const { analyzeRectangles, addLayer, displayDictionary } = require("./tagAddLayer.js");
 
 
@@ -43,7 +43,7 @@ document.getElementById("btnMany").addEventListener("click", () => {
 });
 document.getElementById("btnBatch").addEventListener("click", () => {
     disableButtons();  // only enable the Cancel button        
-    tagBatchFiles(null, null);   
+    tagBatchFiles(null, null);
 });
 document.getElementById("btnHelp").addEventListener("click", () => {
     dialogs[0].uxpShowModal();
@@ -65,9 +65,9 @@ document.getElementById("portraitMode").addEventListener("change", evt => {
 });
 document.getElementById("btnForeground").addEventListener("click", evt => {
     setForeground();
-    console.log(displayDictionary('gSettings foreColorX',gSettings));
+    console.log(displayDictionary('gSettings foreColorX', gSettings));
     localStorage.setItem("foreColor", gSettings.foreColor.rgb.hexValue);
-    console.log(displayDictionary('gSettings foreColor',gSettings));
+    console.log(displayDictionary('gSettings foreColor', gSettings));
     tagSingleFile();
 });
 document.getElementById("btnBackground").addEventListener("click", evt => {
@@ -90,10 +90,36 @@ document.getElementById("fSlider").addEventListener("click", evt => {
     localStorage.setItem("fontSize", gSettings.fontSize);
     tagSingleFile();
 });
-
-let dontAsk = false;
 /**
- * Freshes the FaceTags for the currently open active document
+ * 
+ * @param {*} entry a UXP File entry for the disk file to be opened and tagged
+ * 
+ * @returns false if the file type is not on the list to be facetagged or there are no persons to facetag.
+ */
+async function openAndTagFileFromDisk(entry) {
+    const app = require('photoshop').app;
+   
+    if (!entryTypeIsOK(entry)) // skip over unsupported photo file types
+        return false;
+    await executeAsModal(() => app.open(entry), { "commandName": "Opening batched File" });
+    let aDoc = app.activeDocument;
+    if (aDoc != null) {
+        let persons = readPersonsFromMetadata(entry.nativePath);
+        if ((persons.length > 0) && (!stopTag)) {
+            await faceTagTheImage(persons);
+        } else { 
+             await executeAsModal(() => aDoc.closeWithoutSaving(), { "commandName": "Closing" });
+             await new Promise(r => setTimeout(r, 200));    // required to give time process Cancel Button               
+             return false;
+        }
+    }
+    await new Promise(r => setTimeout(r, 200));    // required to give time process Cancel Button  
+    return true;
+}
+
+let dontAsk = false; // puts up only one alert for missing metadata when loading a bunch of files
+/**
+ * Refreshes the FaceTags for the currently open active document
  */
 async function tagSingleFile() {
 
@@ -103,8 +129,8 @@ async function tagSingleFile() {
     if (app.documents.length == 0) {
         alert("No file is loaded. In PhotoShop Classic, load a file before running the script!");
     } else {
-        await resetHistoryState(aDoc); // erases all previous edits
         let persons = readPersonsFromMetadata(aDoc.path);
+        await resetHistoryState(aDoc);
         await faceTagTheImage(persons);
     }
 };
@@ -112,50 +138,29 @@ async function tagSingleFile() {
 /**
  * Opens up a file dialog box which returns a list of files to process
  * Annotates each file with the face tag labels for each person found in the file metadata 
+ * the photos remain loaded in Photoshop
  */
 async function tagMultiFiles() {
 
     const fs = require('uxp').storage.localFileSystem;
-    const app = require('photoshop').app;  
+    const app = require('photoshop').app;
     disableButtons();  // only enable the Cancel button
 
     // Put up a dialog box, and get a list of file(s) to face tag.
 
-    const files = await fs.getFileForOpening({ allowMultiple: true});       
+    const files = await fs.getFileForOpening({ allowMultiple: true });
 
     dontAsk = false; // puts up only one alert for missing metadata when loading a bunch of files
 
-    for (let i = 0; i < files.length && ( !stopTag); i++) {
-        if (!entryTypeIsOK (files[i])) 
+    for (let i = 0; i < files.length && (!stopTag); i++) {
+        if (! await openAndTagFileFromDisk(files[i]))
             continue;
-    
-        await executeAsModal(() => app.open(files[i]), { "commandName": "Opening a File" });
-
-        let aDoc = app.activeDocument;
-        if (aDoc != null) {
-        await resetHistoryState(aDoc);  // erases all previous edits
-
-        let persons = readPersonsFromMetadata(aDoc.path);
-        await faceTagTheImage(persons);
-        }
-
     }
 
     enableButtons();   // disable the Cancel button and enable the others
 };
 
-function entryTypeIsOK (entry) {
 
-  
-    let flag = false;
-    let fTypes = ['bmp', /*'gif', */'jpg', 'jpeg', 'png', 'psb', 'psd','tif','tiff' ];
-    fTypes.forEach( (fType) => {
-       // console.log(entry.name.toLowerCase() + ", " + fType);
-        if (entry.name.toLowerCase().endsWith(fType))
-        flag=true;
-    });
-    return flag;
-}
 /**
  * Opens up a folder dialog box to select top folder to process
  * Makes a new folder called FaceTaggedPhoto and builds a tree under it that duplicates
@@ -171,72 +176,66 @@ let recursiveLevel = 0;
  * @param {*} faceTaggedPhotosFolder     pointer that is navigating the folder tree containing the results of the faceTagging
  * @returns 
  */
-async function tagBatchFiles(originalPhotosFolder, faceTaggedPhotosFolder ) {
+async function tagBatchFiles(originalPhotosFolder, faceTaggedPhotosFolder) {
     const lfs = require('uxp').storage.localFileSystem;
     const app = require('photoshop').app;
- 
+
     dontAsk = true;
-    console.log("entering = "+recursiveLevel);
+    console.log("entering = " + recursiveLevel);
     recursiveLevel++;
 
-    if (originalPhotosFolder==null) {
+    if (originalPhotosFolder == null) {
 
         originalPhotosFolder = await lfs.getFolder();
-        if (originalPhotosFolder==null) {  // null if user cancels dialog
+        if (originalPhotosFolder == null) {  // null if user cancels dialog
             enableButtons();
             return;
-        }        
+        }
         /**
          * Determine the suffix of the FaceTaggedPhotos folder by finding previous versions and adding 1 to the _n suffix of the folder name.
          */
         const ents = await originalPhotosFolder.getEntries();
         let iMax = 0;
-        for (let i1 = 0; i1 < ents.length ; i1++) {
-            if (ents[i1].name.startsWith("FaceTaggedPhotos")){
+        for (let i1 = 0; i1 < ents.length; i1++) {
+            if (ents[i1].name.startsWith("FaceTaggedPhotos")) {
                 let results = ents[i1].name.split("_");
                 let x = Number(results[1])
-                if ( x> iMax) iMax = x;
+                if (x > iMax) iMax = x;
             }
         }
         iMax++;
-        let faceName ="FaceTaggedPhotos_" + iMax.toString();     
+        let faceName = "FaceTaggedPhotos_" + iMax.toString();
         faceTaggedPhotosFolder = await originalPhotosFolder.createFolder(faceName);
 
-    }  else 
+    } else
         // traverse the FaceTaggedPhotos folder with an identical folder names as the original folder tree
-        faceTaggedPhotosFolder = await faceTaggedPhotosFolder.createFolder(originalPhotosFolder.name)  ;
-    
+        faceTaggedPhotosFolder = await faceTaggedPhotosFolder.createFolder(originalPhotosFolder.name);
+
     const entries = await originalPhotosFolder.getEntries();
     for (let i = 0; (i < entries.length) && (!stopTag); i++) {
-        const entry = entries[i];;     
-        if (entry.isFolder && (! entry.name.startsWith("FaceTaggedPhotos")) && (! entry.name.startsWith(".")) )
-        {                 
+        const entry = entries[i];;
+        if (entry.isFolder && (!entry.name.startsWith("FaceTaggedPhotos")) && (!entry.name.startsWith("."))) {
             await tagBatchFiles(entry, faceTaggedPhotosFolder); // make a new folder in the FaceTaggedPhotos tree 
         } else {
-            if (!entryTypeIsOK (entry)) // skip over unsupported photo file types
+
+            if (! await openAndTagFileFromDisk(entry))
                 continue;
-            let persons = readPersonsFromMetadata(entry.nativePath);
-             if ((persons.length>0) && ( !stopTag)) {   
-                    await executeAsModal(() => app.open(entry), { "commandName": "Opening batched File" });
-                    let aDoc = app.activeDocument;
-                    if (aDoc != null) {                    
-                        await faceTagTheImage(persons);             
-                        await executeAsModal(() =>  aDoc.flatten(), { "commandName": "Flattening" });   // required to save png       
-                        let saveEntry = await faceTaggedPhotosFolder.createFile(aDoc.name);
-                        await executeAsModal(() =>   aDoc.saveAs.png(saveEntry), { "commandName": "Saving" }); 
-                }
-                await executeAsModal(() =>   aDoc.closeWithoutSaving(), { "commandName": "Closing" });                 
-            }
+            let aDoc = app.activeDocument;
+            await executeAsModal(() => aDoc.flatten(), { "commandName": "Flattening" });   // required to save png       
+            let saveEntry = await faceTaggedPhotosFolder.createFile(aDoc.name); // same name as original but store on tagged tree.
+            await executeAsModal(() => aDoc.saveAs.png(saveEntry), { "commandName": "Saving" });
+            await executeAsModal(() => aDoc.closeWithoutSaving(), { "commandName": "Closing" });
+
         }
     };
+    
+    
     recursiveLevel--;
-    console.log("exiting level = " + recursiveLevel);    
-    if (recursiveLevel == 0){
+    console.log("exiting level = " + recursiveLevel);
+    if (recursiveLevel == 0) {
         enableButtons();   // disable the Cancel button and enable the others 
     }
 };
-
-
 
 
 /**
@@ -248,8 +247,8 @@ async function faceTagTheImage(persons) {
 
     const core = require('photoshop').core;
     const app = require('photoshop').app;
-    
-    let gDoc = app.activeDocument;
+
+    let aDoc = app.activeDocument;
 
     if ((persons != undefined) && (persons.length <= 0)) {
         const fname = app.activeDocument.path;
@@ -263,18 +262,36 @@ async function faceTagTheImage(persons) {
 
     persons.sort((a, b) => b.name.toUpperCase().localeCompare(a.name.toUpperCase()));
 
+    // Remove the old FaceTags Group
+
+    let faceTagLayer ;
+    while ((faceTagLayer = aDoc.layers.getByName("FaceTags")) != null) {
+
+        if (faceTagLayer.layers != null) {
+            let n = faceTagLayer.layers.length;
+            for (let i = 0; i < n; i++) {
+                await require('photoshop').core.executeAsModal(() => faceTagLayer.layers[0].delete(), { "commandName": "Deleting Layer" }); // remove old Group
+            }
+        }
+        await require('photoshop').core.executeAsModal(() => faceTagLayer.delete(), { "commandName": "Tagging Faces" }); // remove old Group
+    }
+
+    // start with clean document  
+
+    await executeAsModal(() => aDoc.flatten(), { "commandName": "Flattening" });  
+
     //  find a common face rectangle size that doesn't intersect the other face rectangles too much, and move the rectangle below the chin
 
     let bestRect = analyzeRectangles(persons, gSettings.vertDisplacement);
 
     // Put all layers under a group layer, "FaceTags"
 
-    let faceTagsGroup = await executeAsModal(() => { return gDoc.createLayerGroup({ name: "FaceTags" }) });
+    let faceTagsGroup = await executeAsModal(() => { return aDoc.createLayerGroup({ name: "FaceTags" }) });
 
     // For each person in the picture, make a text layer containing the persons's name on their chest in a TextItem.
 
-    for (let i = 0; (i < persons.length) && ( !stopTag); i++) {
-       
+    for (let i = 0; (i < persons.length) && (!stopTag); i++) {
+
         await addLayer(gSettings, persons[i], bestRect);
     }
 
@@ -286,12 +303,12 @@ async function faceTagTheImage(persons) {
     // apply backdrop effects
 
     if (gSettings.backStroke)
-        await setOutsideStroke(gSettings);   
+        await setOutsideStroke(gSettings);
 
     if (gSettings.portraitMode)
-        await makeAPortrait(gDoc);
+        await makeAPortrait(aDoc);
 
-    await new Promise(r => setTimeout(r, 200));    // required to give time process Cancel Button  
+
 };
 
 // load  persistent data
@@ -301,7 +318,7 @@ function restorePersistentData() {
     gSettings.vertDisplacement = parseFloat(localStorage.getItem("vertDisplacement") || .8);
     gSettings.merge = (localStorage.getItem("merge") || "true") == "true";
     gSettings.backStroke = (localStorage.getItem("backStroke") || "true") == "true";
-    gSettings.portraitMode = (localStorage.getItem("portraitMode") || "false") == "true";    
+    gSettings.portraitMode = (localStorage.getItem("portraitMode") || "false") == "true";
     gSettings.fontSize = parseFloat(localStorage.getItem("fontSize") || 1.0);
 
     // SolidColors are stored as a hexValue string.
@@ -310,18 +327,18 @@ function restorePersistentData() {
     gSettings.foreColor.rgb.hexValue = localStorage.getItem("foreColor") || "0xffffff";
     gSettings.backColor = new SolidColor();
     gSettings.backColor.rgb.hexValue = localStorage.getItem("backColor") || "0x0000ff";
-    console.log(displayDictionary('gSettings',gSettings));
-      
+    console.log(displayDictionary('gSettings', gSettings));
+
 }
 
 function disableButtons() {
     document.getElementById("btnStop").removeAttribute("disabled");
     document.getElementById("btnMany").setAttribute("disabled", "true");
-    document.getElementById("btnBatch").setAttribute("disabled", "true");    
+    document.getElementById("btnBatch").setAttribute("disabled", "true");
     document.getElementById("btnOne").setAttribute("disabled", "true");
     document.getElementById("merge").setAttribute("disabled", "true");
     document.getElementById("backStroke").setAttribute("disabled", "true");
-    document.getElementById("portraitMode").setAttribute("disabled", "true");     
+    document.getElementById("portraitMode").setAttribute("disabled", "true");
     document.getElementById("btnHelp").setAttribute("disabled", "true");
     document.getElementById("vSlider").setAttribute("disabled", "true");
     document.getElementById("fSlider").setAttribute("disabled", "true");
@@ -333,11 +350,11 @@ function disableButtons() {
 function enableButtons() {
     document.getElementById("btnStop").setAttribute("disabled", "true");
     document.getElementById("btnMany").removeAttribute("disabled");
-    document.getElementById("btnBatch").removeAttribute("disabled");    
+    document.getElementById("btnBatch").removeAttribute("disabled");
     document.getElementById("btnOne").removeAttribute("disabled");
     document.getElementById("merge").removeAttribute("disabled");
     document.getElementById("backStroke").removeAttribute("disabled");
-    document.getElementById("portraitMode").removeAttribute("disabled");    
+    document.getElementById("portraitMode").removeAttribute("disabled");
     document.getElementById("btnHelp").removeAttribute("disabled");
     document.getElementById("vSlider").removeAttribute("disabled");
     document.getElementById("fSlider").removeAttribute("disabled");
@@ -345,15 +362,31 @@ function enableButtons() {
     document.getElementById("btnBackground").removeAttribute("disabled");
     stopTag = false;
 }
+/**
+ * 
+ * @param {*} entry a UXP File entry 
+ * @returns true if the filetype is on the approved list for Face Tagging
+ *          false if the extension is not approved
+ */
+function entryTypeIsOK(entry) {
 
-makeHelpDialogs();
+    let flag = false;
+    let fTypes = ['bmp', /*'gif', */'jpg', 'jpeg', 'png', 'psb', 'psd', 'tif', 'tiff'];
+    fTypes.forEach((fType) => {
+        if (entry.name.toLowerCase().endsWith(fType))
+            flag = true;
+    });
+    return flag;
+}
 /**
  * Erase all edits by rewinding to the first history state.
  * @param {*} aDoc // the active document 
  */
 async function resetHistoryState(aDoc) {
-     await executeAsModal(() => {
-        if (aDoc.historyStates[0] != null) aDoc.activeHistoryState  = aDoc.historyStates[0]; 
+    await executeAsModal(() => {
+        if (aDoc.historyStates[0] != null) aDoc.activeHistoryState = aDoc.historyStates[0];
     }
-    , { "commandName": "Resetting History" }); 
+        , { "commandName": "Resetting History" });
 };
+makeHelpDialogs();
+

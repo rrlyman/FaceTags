@@ -3,6 +3,39 @@
 
 const { displayDictionary } = require('./tagAddLayer');
 
+
+// Events recognized as notifiers are not re-playable in most of the cases. There is high chance that generated code won't work.
+
+
+async function newDocumentFromHistory_actn() {
+   const result = await batchPlay(
+      [
+         {
+            _obj: "make",
+            _target: [
+               {
+                  _ref: "document"
+               }
+            ],
+            using: {
+               _ref: "historyState",
+               _property: "currentHistoryState"
+            },
+            _options: {
+               dialogOptions: "dontDisplay"
+            }
+         }
+      ],
+      {}
+   );
+}
+
+async function newDocumentFromHistory() {
+   await executeAsModal(newDocumentFromHistory_actn, {"commandName": "Action Commands"});
+}
+
+
+
 /** Post Processing: add a background around the text for more readability
  * 
  * @param {*} gSettings dictionnary containing global settings
@@ -406,6 +439,35 @@ async function linkLayers_actn() {
 async function linkLayers() {
    await executeAsModal(linkLayers_actn, {"commandName": "Action Commands"});
 };
+async function blackAndWhite_actn() {
+   const result = await batchPlay(
+      [
+         {
+            _obj: "make",
+            _target: [
+               {
+                  _ref: "adjustmentLayer"
+               }
+            ],
+            using: {
+               _obj: "adjustmentLayer",
+               type: {
+                  _obj: "blackAndWhite"
+               }
+            },
+            _options: {
+               dialogOptions: "dontDisplay"
+            }
+         }
+      ],
+      {}
+   );
+}
+
+async function blackAndWhite() {
+   await executeAsModal(blackAndWhite_actn, {"commandName": "Action Commands"});
+}
+
 
 /**
  * Make an artboard, twice as tall as the original photo, containing the original photo on the top half
@@ -419,6 +481,7 @@ async function linkLayers() {
     await selectBackgroundLayer();
     await copyBackGroundLayer();
     await reduceOpacity();  
+   // await blackAndWhite();    
     await addSelectFaceTags();
     await linkLayers() ;
     await makeAnArtboard(dWidth, 2*dHeight);
@@ -427,6 +490,6 @@ async function linkLayers() {
 };
 
 module.exports = {
-    setForeground, setBackground, setOutsideStroke,  makeAPortrait
+    setForeground, setBackground, setOutsideStroke,  makeAPortrait, newDocumentFromHistory
 };
 
