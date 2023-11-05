@@ -109,12 +109,12 @@ async function openAndTagFileFromDisk(entry) {
             await faceTagTheImage(persons);
         } else {
             await executeAsModal(() => aDoc.closeWithoutSaving(), { "commandName": "Closing" });
-            await new Promise(r => setTimeout(r, 200));    // required to give time process Cancel Button               
+            await new Promise(r => setTimeout(r, 100));    // required to give time process Cancel Button               
             return false;
         }
     } else
         return false;
-    await new Promise(r => setTimeout(r, 200));    // required to give time process Cancel Button  
+    await new Promise(r => setTimeout(r, 100));    // required to give time process Cancel Button  
     return true;
 }
 
@@ -223,7 +223,7 @@ async function tagBatchFiles(originalPhotosFolder, faceTaggedPhotosFolder) {
             let aDoc = app.activeDocument;
             await executeAsModal(() => aDoc.flatten(), { "commandName": "Flattening" });   // required to save png       
             let saveEntry = await faceTaggedPhotosFolder.createFile(aDoc.name); // same name as original but store on tagged tree.
-            await executeAsModal(() => aDoc.saveAs.png(saveEntry), { "commandName": "Saving" });
+            await executeAsModal(() => aDoc.saveAs.jpg(saveEntry), { "commandName": "Saving" });
             await executeAsModal(() => aDoc.closeWithoutSaving(), { "commandName": "Closing" });
         }
     };
