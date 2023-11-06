@@ -23,6 +23,9 @@ function readPersonsFromMetadata(filePath) {
     // The disadvatnge is that, if a new document is created from history, then a file has not yet been written to the disk, but there is metadata 
     // available if read via photoshop
 
+    // NOTE: XMPFile once in a while gets stuck and either needs Photoshop to be restarted or the computer to be rebooted.
+    // getDocumentXMP is more reliable.
+
     const xmpFile = new xmp.XMPFile(filePath, xmp.XMPConst.FILE_JPEG, xmp.XMPConst.OPEN_FOR_READ); // not listed as async
     const xmpMeta = xmpFile.getXMP();  // not listed as async
     //const xmpMeta = new xmp.XMPMeta(getDocumentXMP());

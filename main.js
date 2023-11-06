@@ -24,6 +24,8 @@ const { analyzeRectangles, addLayer, displayDictionary } = require("./tagAddLaye
 let gSettings = {};
 let stopTag = false;
 
+const labeledSuffix = "-labeled";
+
 restorePersistentData();
 gSettings.charsPerFace = 10;  // not currently adjustable
 
@@ -131,7 +133,7 @@ async function tagSingleFile() {
         alert("No file is loaded. In PhotoShop Classic, load a file before running the script!");
     } else {
         let persons = readPersonsFromMetadata(aDoc.path);
-        await resetHistoryState(aDoc);
+        // await resetHistoryState(aDoc);  // why do I need this?
         await faceTagTheImage(persons);
     }
 };
@@ -160,6 +162,29 @@ async function tagMultiFiles() {
 
     enableButtons();   // disable the Cancel button and enable the others
 };
+var labeledDirectory;
+/**
+ * Determine the suffix of the labeledDirectory folder by finding previous versions and adding 1 to the _n suffix of the folder name.
+ */
+/**
+ * 
+ * @param {*} ents List of files and folders of the top level folder 
+ * @returns The name of the labeledDirectory top level folder
+ */
+function getFaceTagsTreeName(originalName, ents) {
+    let iMax = 0;
+    labeledDirectory = originalName + labeledSuffix;
+    for (let i1 = 0; i1 < ents.length; i1++) {
+        if (ents[i1].name.startsWith(labeledDirectory)) {
+            let results = ents[i1].name.split("_");
+            let x = Number(results[1])
+            if (x > iMax) iMax = x;
+        }
+    }
+    iMax++;
+    let faceName = labeledDirectory + "_" + iMax.toString();
+    return faceName;
+}
 
 
 /**
@@ -168,87 +193,81 @@ async function tagMultiFiles() {
  * the source tree. Populates it with tagged photos of the originals.
  * 
  * Annotates each file with the face tag labels for each person found in the file metadata 
- */
-
-
-/**
  * 
- * @param {*} originalPhotosFolder       Pointer that is navigating the folder tree with the original photos.
- * @param {*} faceTaggedPhotosFolder     Pointer that is navigating the folder tree containing the results of the faceTagging.
+ * @param {*} originalPhotosFolder       Folder Entry that is navigating the folder tree with the original photos. null if is the initial call
+ * @param {*} labeledDirectoryFolder     Folder Entry that is navigating the folder tree containing the results of the faceTagging.
  * @returns 
  */
-async function tagBatchFiles(originalPhotosFolder, faceTaggedPhotosFolder) {
-    const lfs = require('uxp').storage.localFileSystem;
+async function tagBatchFiles(originalPhotosFolder, labeledDirectoryFolder) {
+    const fs = require('uxp').storage.localFileSystem;
     const app = require('photoshop').app;
     let topRecursionLevel = false;
+    let newFolder = null;
 
     dontAsk = true;
 
-    if (originalPhotosFolder == null) {
+    // make the newFolder in the FaceTags Tree to hold tagged version of the files in the originalPhotosFolder
+
+    if (originalPhotosFolder == null) {  // null is the initial call
         topRecursionLevel = true;
-        originalPhotosFolder = await lfs.getFolder();
-        if (originalPhotosFolder == null) {  // null if user cancels dialog
-            enableButtons();
-            return;
+        originalPhotosFolder = await fs.getFolder();
+        if (originalPhotosFolder != null) {  // null if user cancels dialog  
+            // create the top level labeledDirectoryFolder
+            const ents = await originalPhotosFolder.getEntries();
+            newFolder = await originalPhotosFolder.createFolder(getFaceTagsTreeName(originalPhotosFolder.name, ents));
         }
-        /**
-         * Determine the suffix of the FaceTaggedPhotos folder by finding previous versions and adding 1 to the _n suffix of the folder name.
-         */
-        const ents = await originalPhotosFolder.getEntries();
-        let iMax = 0;
-        for (let i1 = 0; i1 < ents.length; i1++) {
-            if (ents[i1].name.startsWith("FaceTaggedPhotos")) {
-                let results = ents[i1].name.split("_");
-                let x = Number(results[1])
-                if (x > iMax) iMax = x;
+
+    } else {
+
+        // traverse the labeledDirectory folder with an folder names similar to the original folder tree
+        newFolder = await labeledDirectoryFolder.createFolder(originalPhotosFolder.name + labeledSuffix);
+    }
+
+    // process all the files and folders in the originalPhotosFolder
+    if (newFolder != null) {
+        const entries = await originalPhotosFolder.getEntries();
+        for (let i = 0; (i < entries.length) && (!stopTag); i++) {
+            const entry = entries[i];;
+
+            // recurse folders
+            if (entry.isFolder && (!entry.name.startsWith(labeledDirectory)) && (!entry.name.startsWith("."))) {
+                await tagBatchFiles(entry, newFolder);
+
+            } else {
+
+                ////////////////////     PAYLOAD START     /////////////////////      
+
+                // Facetag the file                 
+                if (! await openAndTagFileFromDisk(entry))
+                    continue;
+
+                // and save it
+                let aDoc = app.activeDocument;
+                await executeAsModal(() => aDoc.flatten(), { "commandName": "Flattening" });   // required to save png 
+                // get rid of the old extension
+                let fname = aDoc.name.replace(/\.[^/.]+$/, "") + labeledSuffix + '.jpg';
+                let saveEntry = await newFolder.createFile(fname); // similar name as original but store on tagged tree.
+                await executeAsModal(() => aDoc.saveAs.jpg(saveEntry), { "commandName": "Saving" });
+                await executeAsModal(() => aDoc.closeWithoutSaving(), { "commandName": "Closing" });
+
+                ////////////////////     PAYLOAD END     /////////////////////      
+
             }
         }
-        iMax++;
-        let faceName = "FaceTaggedPhotos_" + iMax.toString();
-        faceTaggedPhotosFolder = await originalPhotosFolder.createFolder(faceName);
 
-    } else
-        // traverse the FaceTaggedPhotos folder with an identical folder names as the original folder tree
-        faceTaggedPhotosFolder = await faceTaggedPhotosFolder.createFolder(originalPhotosFolder.name);
-
-    const entries = await originalPhotosFolder.getEntries();
-    for (let i = 0; (i < entries.length) && (!stopTag); i++) {
-        const entry = entries[i];;
-        if (entry.isFolder && (!entry.name.startsWith("FaceTaggedPhotos")) && (!entry.name.startsWith("."))) {
-            await tagBatchFiles(entry, faceTaggedPhotosFolder); // make a new folder in the FaceTaggedPhotos tree 
-        } else {
-
-            if (! await openAndTagFileFromDisk(entry))
-                continue;
-            let aDoc = app.activeDocument;
-            await executeAsModal(() => aDoc.flatten(), { "commandName": "Flattening" });   // required to save png       
-            let saveEntry = await faceTaggedPhotosFolder.createFile(aDoc.name); // same name as original but store on tagged tree.
-            await executeAsModal(() => aDoc.saveAs.jpg(saveEntry), { "commandName": "Saving" });
-            await executeAsModal(() => aDoc.closeWithoutSaving(), { "commandName": "Closing" });
+        // delete empty folders
+        let ents = await newFolder.getEntries();
+        if (ents.length == 0) {
+            console.log("deleting " + newFolder.name);
+            await newFolder.delete();
         }
-    };
+    }
 
     if (topRecursionLevel) {
         console.log("topRecursionLevel");
-        deleteEmptyFolders(faceTaggedPhotosFolder);
         enableButtons();   // disable the Cancel button and enable the others 
     }
 };
-/**
- * Recursively delete any Folders with zero Folders and Files.
- * @param {*} entry Folder entry to be tested for deletion.
- */
-async function deleteEmptyFolders(folderEntry) {
-    const entries = await folderEntry.getEntries();
-    if (entries.length == 0) {
-        await folderEntry.delete();
-    } else {
-        for (let i = 0; (i < entries.length) && (!stopTag); i++) {
-            if (entries[i].isFolder)
-                await deleteEmptyFolders(entries[i]);
-        }
-    }
-}
 
 /**
  *  create face labels for each person rectangle found in the document metadata
@@ -303,7 +322,6 @@ async function faceTagTheImage(persons) {
     // For each person in the picture, make a text layer containing the persons's name on their chest in a TextItem.
 
     for (let i = 0; (i < persons.length) && (!stopTag); i++) {
-
         await addLayer(gSettings, persons[i], bestRect);
     }
 
@@ -396,11 +414,11 @@ function entryTypeIsOK(entry) {
  * Erase all edits by rewinding to the first history state.
  * @param {*} aDoc // the active document 
  */
-async function resetHistoryState(aDoc) {
+/* async function resetHistoryState(aDoc) {
     await executeAsModal(() => {
         if (aDoc.historyStates[0] != null) aDoc.activeHistoryState = aDoc.historyStates[0];
     }
         , { "commandName": "Resetting History" });
-};
+}; */
 makeHelpDialogs();
 
