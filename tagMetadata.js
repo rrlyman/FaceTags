@@ -30,11 +30,15 @@ function readPersonsFromMetadata(filePath) {
     const xmpMeta = xmpFile.getXMP();  // not listed as async
     //const xmpMeta = new xmp.XMPMeta(getDocumentXMP());
     const ns = "http://www.metadataworkinggroup.com/schemas/regions/";
-    //const ns2 = "http://ns.adobe.com/xmp/sType/Area#";
 
     for (let i = 1; i < 1000; i++) {
-        const personName = xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Name");  // not listed as async
-
+        // check for unregistered name space, happens if there are no mwg-rs entries in the metadata
+        let personName = "" ;
+        try {
+            personName =  xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Name");  // not listed as async
+        } catch (e) {
+            break;
+        }
         // x, y, w, and h are in the range 0 to 1.0 and represent a fraction of the document width and height
         const x = parseFloat(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area/stArea:x"));
 
@@ -47,7 +51,7 @@ function readPersonsFromMetadata(filePath) {
         const h = parseFloat(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area/stArea:h"));
 
         // Skip over blank names. Lightroom Classic puts in the rectangle with no name. The name shouws in Lightroom as a '?'
-        if (personName == undefined || personName.Length == 0)
+        if (personName == undefined || personName.length == 0)
             continue;
 
         const person = {
@@ -67,8 +71,8 @@ function readPersonsFromMetadata(filePath) {
  * picks up the metadata of the currently loaded photo in Photoshop
  * @returns text buffer containing the metadata
  */
- const getDocumentXMP = () => {
-    const {batchPlay} = require("photoshop").action;    
+const getDocumentXMP = () => {
+    const { batchPlay } = require("photoshop").action;
     return batchPlay(
         [
             {
@@ -79,7 +83,7 @@ function readPersonsFromMetadata(filePath) {
                         { _ref: "document", _enum: "ordinal", _value: "targetEnum" },
                     ],
                 },
-            },      ],
+            },],
         { synchronousExecution: true }
     )[0].XMPMetadataAsUTF8;
 };

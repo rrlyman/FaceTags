@@ -404,8 +404,11 @@ function entryTypeIsOK(entry) {
     if (!entry.isFolder) {
         let fTypes = ['.bmp', /*'gif', */'.jpg', '.jpeg', '.png', '.psb', '.psd', '.tif', '.tiff'];
         fTypes.forEach((fType) => {
-            if (entry.name.toLowerCase().endsWith(fType))
-                flag = true;
+            let eName = entry.name.toLowerCase();
+            if (eName.endsWith(fType)) {
+                if (eName.replace(fType,"").length > 0)           
+                    flag = true;
+            }
         });
     }
     return flag;
