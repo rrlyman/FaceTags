@@ -44,8 +44,8 @@ document.getElementById("btnMany").addEventListener("click", () => {
     tagMultiFiles(null);
 });
 document.getElementById("btnBatch").addEventListener("click", () => {
-    disableButtons();  // only enable the Cancel button        
-    tagBatchFiles(null, null);
+
+    tagBatchFiles(null, null, null);
 });
 document.getElementById("btnHelp").addEventListener("click", () => {
     dialogs[0].uxpShowModal();
@@ -162,7 +162,7 @@ async function tagMultiFiles() {
 
     enableButtons();   // disable the Cancel button and enable the others
 };
-var labeledDirectory;
+
 /**
  * Determine the suffix of the labeledDirectory folder by finding previous versions and adding 1 to the _n suffix of the folder name.
  */
@@ -173,16 +173,18 @@ var labeledDirectory;
  */
 function getFaceTagsTreeName(originalName, ents) {
     let iMax = 0;
-    labeledDirectory = originalName + labeledSuffix;
+    let targetFolder = originalName + labeledSuffix;
     for (let i1 = 0; i1 < ents.length; i1++) {
-        if (ents[i1].name.startsWith(labeledDirectory)) {
+        if (ents[i1].name.startsWith(targetFolder)) {
             let results = ents[i1].name.split("_");
-            let x = Number(results[1])
-            if (x > iMax) iMax = x;
+            if (results.length > 1) {
+                let x = Number(results.pop())
+                if (x > iMax) iMax = x;
+            }
         }
     }
     iMax++;
-    let faceName = labeledDirectory + "_" + iMax.toString();
+    let faceName = targetFolder + "_" + iMax.toString();
     return faceName;
 }
 
@@ -198,7 +200,7 @@ function getFaceTagsTreeName(originalName, ents) {
  * @param {*} labeledDirectoryFolder     Folder Entry that is navigating the folder tree containing the results of the faceTagging.
  * @returns 
  */
-async function tagBatchFiles(originalPhotosFolder, labeledDirectoryFolder) {
+async function tagBatchFiles(baseName, originalPhotosFolder, labeledDirectoryFolder) {
     const fs = require('uxp').storage.localFileSystem;
     const app = require('photoshop').app;
     let topRecursionLevel = false;
@@ -211,11 +213,15 @@ async function tagBatchFiles(originalPhotosFolder, labeledDirectoryFolder) {
     if (originalPhotosFolder == null) {  // null is the initial call
         topRecursionLevel = true;
         originalPhotosFolder = await fs.getFolder();
-        if (originalPhotosFolder != null) {  // null if user cancels dialog  
-            // create the top level labeledDirectoryFolder
-            const ents = await originalPhotosFolder.getEntries();
-            newFolder = await originalPhotosFolder.createFolder(getFaceTagsTreeName(originalPhotosFolder.name, ents));
+        if (originalPhotosFolder == null) {  // null if user cancels dialog              
+            return;
         }
+        disableButtons();  // only enable the Cancel button                
+        // create the top level labeledDirectoryFolder
+        const ents = await originalPhotosFolder.getEntries();
+        baseName = originalPhotosFolder.name + labeledSuffix;
+        newFolder = await originalPhotosFolder.createFolder(getFaceTagsTreeName(originalPhotosFolder.name, ents));
+ 
 
     } else {
 
@@ -230,8 +236,8 @@ async function tagBatchFiles(originalPhotosFolder, labeledDirectoryFolder) {
             const entry = entries[i];;
 
             // recurse folders
-            if (entry.isFolder && (!entry.name.startsWith(labeledDirectory)) && (!entry.name.startsWith("."))) {
-                await tagBatchFiles(entry, newFolder);
+            if (entry.isFolder && (!entry.name.startsWith(baseName)) && (!entry.name.startsWith("."))) {
+                await tagBatchFiles(baseName, entry, newFolder);
 
             } else {
 
