@@ -468,6 +468,36 @@ async function blackAndWhite() {
    await executeAsModal(blackAndWhite_actn, {"commandName": "Action Commands"});
 }
 
+// Events recognized as notifiers are not re-playable in most of the cases. There is high chance that generated code won't work.
+
+
+async function trim_actn() {
+   const result = await batchPlay(
+      [
+         {
+            _obj: "trim",
+            trimBasedOn: {
+               _enum: "trimBasedOn",
+               _value: "bottomRightPixelColor"
+            },
+            top: false,
+            bottom: true,
+            left: false,
+            right: false,
+            _options: {
+               dialogOptions: "dontDisplay"
+            }
+         }
+      ],
+      {}
+   );
+}
+
+async function trim() {
+   await executeAsModal(trim_actn, {"commandName": "Action Commands"});
+}
+
+
 
 /**
  * Make an artboard, twice as tall as the original photo, containing the original photo on the top half
@@ -484,12 +514,13 @@ async function blackAndWhite() {
    // await blackAndWhite();    
     await addSelectFaceTags();
     await linkLayers() ;
-    await makeAnArtboard(dWidth, 2*dHeight);
+    await makeAnArtboard(dWidth, dHeight);
     await selectBackgroundCopy();
-    await moveGrayImage(dHeight);
+    await moveGrayImage(dHeight); // move increases artboard height
+    await trim();   // get rid extra space at the bottom
 };
 
 module.exports = {
-    setForeground, setBackground, setOutsideStroke,  makeAPortrait, newDocumentFromHistory
+    setForeground, setBackground, setOutsideStroke,  makeAPortrait, newDocumentFromHistory, trim
 };
 

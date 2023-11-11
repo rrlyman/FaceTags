@@ -4,7 +4,7 @@ const { executeAsModal } = require("photoshop").core;
 const { batchPlay } = require("photoshop").action;
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
 const { makeHelpDialogs } = require("./tagHelp.js");
-const { setForeground, setBackground, setOutsideStroke, makeAPortrait, newDocumentFromHistory } = require("./tagBatchPlay.js");
+const { setForeground, setBackground, setOutsideStroke, makeAPortrait, newDocumentFromHistory, trim} = require("./tagBatchPlay.js");
 const { analyzeRectangles, addLayer, displayDictionary } = require("./tagAddLayer.js");
 
 
@@ -82,12 +82,12 @@ document.getElementById("btnStop").addEventListener("click", evt => {
     enableButtons();        // this might cure lockup  when moving panel during facetags
     stopTag = true;
 });
-document.getElementById("vSlider").addEventListener("click", evt => {
+document.getElementById("vSlider").addEventListener("change", evt => {
     gSettings.vertDisplacement = (evt.target.value - (50 * 3.8 / 3)) / (-50 / 3);
     localStorage.setItem("vertDisplacement", gSettings.vertDisplacement);
     tagSingleFile();
 });
-document.getElementById("fSlider").addEventListener("click", evt => {
+document.getElementById("fSlider").addEventListener("change", evt => {
     gSettings.fontSize = (evt.target.value - (-0.2 * 50 / 0.8)) / (50 / .8);
     localStorage.setItem("fontSize", gSettings.fontSize);
     tagSingleFile();
@@ -116,6 +116,7 @@ async function openAndTagFileFromDisk(entry) {
         }
     } else
         return false;
+
     await new Promise(r => setTimeout(r, 100));    // required to give time process Cancel Button  
     return true;
 }
@@ -250,7 +251,6 @@ async function tagBatchFiles(baseName, originalPhotosFolder, labeledDirectoryFol
                 // and save it
                 let aDoc = app.activeDocument;
                 await executeAsModal(() => aDoc.flatten(), { "commandName": "Flattening" });   // required to save png 
-                // get rid of the old extension
                 let fname = aDoc.name.replace(/\.[^/.]+$/, "") + labeledSuffix + '.jpg';
                 let saveEntry = await newFolder.createFile(fname); // similar name as original but store on tagged tree.
                 await executeAsModal(() => aDoc.saveAs.jpg(saveEntry), { "commandName": "Saving" });
@@ -299,7 +299,7 @@ async function faceTagTheImage(persons) {
 
     persons.sort((a, b) => b.name.toUpperCase().localeCompare(a.name.toUpperCase()));
 
-    // Remove the old FaceTags Group
+/*     // Remove the old FaceTags Group
 
     let faceTagLayer;
     while ((faceTagLayer = aDoc.layers.getByName("FaceTags")) != null) {
@@ -311,10 +311,10 @@ async function faceTagTheImage(persons) {
             }
         }
         await require('photoshop').core.executeAsModal(() => faceTagLayer.delete(), { "commandName": "Tagging Faces" }); // remove old Group
-    }
+    } */
 
     // start with clean document  
-
+    resetHistoryState(aDoc);
     await executeAsModal(() => aDoc.flatten(), { "commandName": "Flattening" });
 
     //  find a common face rectangle size that doesn't intersect the other face rectangles too much, and move the rectangle below the chin
@@ -341,8 +341,12 @@ async function faceTagTheImage(persons) {
     if (gSettings.backStroke)
         await setOutsideStroke(gSettings);
 
-    if (gSettings.portraitMode)
+    // convert to portrait format image
+
+    if (gSettings.portraitMode) 
         await makeAPortrait(aDoc);
+
+
 
 
 };
@@ -423,11 +427,11 @@ function entryTypeIsOK(entry) {
  * Erase all edits by rewinding to the first history state.
  * @param {*} aDoc // the active document 
  */
-/* async function resetHistoryState(aDoc) {
+async function resetHistoryState(aDoc) {
     await executeAsModal(() => {
         if (aDoc.historyStates[0] != null) aDoc.activeHistoryState = aDoc.historyStates[0];
     }
         , { "commandName": "Resetting History" });
-}; */
+};
 makeHelpDialogs();
 
