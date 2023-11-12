@@ -4,7 +4,7 @@ const { executeAsModal } = require("photoshop").core;
 const { batchPlay } = require("photoshop").action;
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
 const { makeHelpDialogs } = require("./tagHelp.js");
-const { setForeground, setBackground, setOutsideStroke, makeAPortrait, newDocumentFromHistory, trim} = require("./tagBatchPlay.js");
+const { setForeground, setBackground, setOutsideStroke, makeAPortrait, newDocumentFromHistory, trim } = require("./tagBatchPlay.js");
 const { analyzeRectangles, addLayer, displayDictionary } = require("./tagAddLayer.js");
 
 
@@ -104,18 +104,15 @@ async function openAndTagFileFromDisk(entry) {
     if (!entryTypeIsOK(entry)) // skip over unsupported photo file types
         return false;
     let persons = readPersonsFromMetadata(entry.nativePath);
-    if ((persons.length > 0) && (!stopTag)) {
-        await executeAsModal(() => app.open(entry), { "commandName": "Opening batched File" });
-        let aDoc = app.activeDocument;
-        if (aDoc != null) {
-            await faceTagTheImage(persons);
-        } else {
-            await executeAsModal(() => aDoc.closeWithoutSaving(), { "commandName": "Closing" });
-            await new Promise(r => setTimeout(r, 100));    // required to give time process Cancel Button               
-            return false;
-        }
-    } else
+    await executeAsModal(() => app.open(entry), { "commandName": "Opening batched File" });
+    let aDoc = app.activeDocument;
+    if (aDoc != null) {
+        await faceTagTheImage(persons);
+    } else {
+        await executeAsModal(() => aDoc.closeWithoutSaving(), { "commandName": "Closing" });
+        await new Promise(r => setTimeout(r, 100));    // required to give time process Cancel Button               
         return false;
+    }
 
     await new Promise(r => setTimeout(r, 100));    // required to give time process Cancel Button  
     return true;
@@ -134,7 +131,7 @@ async function tagSingleFile() {
         alert("No file is loaded. In PhotoShop Classic, load a file before running the script!");
     } else {
         let persons = readPersonsFromMetadata(aDoc.path);
-        // await resetHistoryState(aDoc);  // why do I need this?
+        dontAsk = false;
         await faceTagTheImage(persons);
     }
 };
@@ -207,7 +204,7 @@ async function tagBatchFiles(baseName, originalPhotosFolder, labeledDirectoryFol
     let topRecursionLevel = false;
     let newFolder = null;
 
-    dontAsk = true;
+    dontAsk = true;  // omit no perssons found message
 
     // make the newFolder in the FaceTags Tree to hold tagged version of the files in the originalPhotosFolder
 
@@ -222,7 +219,7 @@ async function tagBatchFiles(baseName, originalPhotosFolder, labeledDirectoryFol
         const ents = await originalPhotosFolder.getEntries();
         baseName = originalPhotosFolder.name + labeledSuffix;
         newFolder = await originalPhotosFolder.createFolder(getFaceTagsTreeName(originalPhotosFolder.name, ents));
- 
+
 
     } else {
 
@@ -299,20 +296,6 @@ async function faceTagTheImage(persons) {
 
     persons.sort((a, b) => b.name.toUpperCase().localeCompare(a.name.toUpperCase()));
 
-/*     // Remove the old FaceTags Group
-
-    let faceTagLayer;
-    while ((faceTagLayer = aDoc.layers.getByName("FaceTags")) != null) {
-
-        if (faceTagLayer.layers != null) {
-            let n = faceTagLayer.layers.length;
-            for (let i = 0; i < n; i++) {
-                await require('photoshop').core.executeAsModal(() => faceTagLayer.layers[0].delete(), { "commandName": "Deleting Layer" }); // remove old Group
-            }
-        }
-        await require('photoshop').core.executeAsModal(() => faceTagLayer.delete(), { "commandName": "Tagging Faces" }); // remove old Group
-    } */
-
     // start with clean document  
     resetHistoryState(aDoc);
     await executeAsModal(() => aDoc.flatten(), { "commandName": "Flattening" });
@@ -343,7 +326,7 @@ async function faceTagTheImage(persons) {
 
     // convert to portrait format image
 
-    if (gSettings.portraitMode) 
+    if (gSettings.portraitMode)
         await makeAPortrait(aDoc);
 
 
@@ -416,7 +399,7 @@ function entryTypeIsOK(entry) {
         fTypes.forEach((fType) => {
             let eName = entry.name.toLowerCase();
             if (eName.endsWith(fType)) {
-                if (eName.replace(fType,"").length > 0)           
+                if (eName.replace(fType, "").length > 0)
                     flag = true;
             }
         });
