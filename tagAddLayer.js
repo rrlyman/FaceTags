@@ -125,8 +125,7 @@ function analyzeRectangles(persons, gVertDisplacement) {
             "h": h
         };
         persons[i] = person;
-        displayDictionary("before", persons[i]);
-    };
+       };
     const rect = {
         "w": avgWidth,
         "h": avgHeight
