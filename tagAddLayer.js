@@ -41,10 +41,10 @@ async function addLayer(gSettings, person, bestRect) {
  */
 async function addLayer_actn(gSettings, person, bestRect) {
     const app = require('photoshop').app;
-    const gDoc = app.activeDocument;
+    const aDoc = app.activeDocument;
     const constants = require("photoshop").constants;
     const bnds = { "_left": person.x - bestRect.w / 2, "_top": person.y, "_bottom": person.y + bestRect.h, "_right": person.x + bestRect.w / 2 };
-    const newLayer = await gDoc.createTextLayer({ "name": person.name, bounds: bnds });
+    const newLayer = await aDoc.createTextLayer({ "name": person.name, bounds: bnds });
     newLayer.textItem.characterStyle.size = calculatePoints(gSettings, bestRect); // zeros the bounds       
     newLayer.bounds = bnds;
     newLayer.textItem.contents = justifyText(gSettings, person.name);
@@ -99,7 +99,7 @@ function displayDictionary(str, pEntry) {
  */
 function analyzeRectangles(persons, gVertDisplacement) {
     const app = require('photoshop').app;
-    const gDoc = app.activeDocument;
+    const aDoc = app.activeDocument;
     let avgWidth = 0.0;
     let avgHeight = 0.0;
     for (let i = 0; i < persons.length; i++) {
@@ -108,11 +108,13 @@ function analyzeRectangles(persons, gVertDisplacement) {
         let y = persons[i].y;
         let w = persons[i].w;
         let h = persons[i].h;
-        const widenAmt = 4;								// inflate the rectangle by a lot.  The bestRect will be delated later.
-        x = x * gDoc.width; 							// (x,y) is the center of the rectangle so they do not move during inflation or deflation.       
-        y = (y + gVertDisplacement * h) * gDoc.height; 	// lower the rectangle below the chin by changing x,y to be the center of the top of the bounding box       
-        w = widenAmt * w * gDoc.width;		        	// inflate the text rectangle 
-        h = widenAmt * h * gDoc.height;
+        y = (y + gVertDisplacement * h);  	            // lower the rectangle below the chin by changing x,y to be the center of the top of the bounding box         
+        const widenAmt = 4;                             // inflate the rectangle, but clip to the width and height
+        x = x * aDoc.width; 							// (x,y) is the center of the rectangle so they do not move during inflation or deflation.       
+        y = y * aDoc.height;
+        w = Math.min(aDoc.width, widenAmt * w * aDoc.width);		        	// inflate the text rectangle 
+        h = Math.min(aDoc.height, widenAmt * h * aDoc.height);
+
         avgWidth += (w / persons.length);		        // calculates out an average size for the text boxes
         avgHeight += (h / persons.length);
         let person = {
@@ -123,6 +125,7 @@ function analyzeRectangles(persons, gVertDisplacement) {
             "h": h
         };
         persons[i] = person;
+        displayDictionary("before", persons[i]);
     };
     const rect = {
         "w": avgWidth,
@@ -134,7 +137,28 @@ function analyzeRectangles(persons, gVertDisplacement) {
     return bestRect;
 
 };
+/**
+ * If the face rectangle of a person hits the bottom of the photo, reduce the size of the best rectangle and move the person rectangle up.
+ * @param {*} persons   person rectangles
+ * @param {*} bestRect  the width and height of the rectangle to use for all faces
+ * @returns 
+ */
+function hitsTheBottom(persons, bestRect) {
+    const app = require('photoshop').app;
+    const aDoc = app.activeDocument;
 
+    for (let i = 0; i < persons.length; i++) {
+        if ((persons[i].y + bestRect.h / 2) > aDoc.height) {       // does it hit bottom      
+            console.log(persons[i].name + " hits the bottom in " + aDoc.name);
+            bestRect = {
+                "w": bestRect.w * .5,   // reduce best rectangle size
+                "h": bestRect.h * .5
+            };
+            persons[i].y = aDoc.height - .5 * bestRect.h;   // move up
+        }
+    }
+    return bestRect;
+}
 
 /**
  * keep reducing the size of the average rectangle until there are no intersecting rectangles.
@@ -143,34 +167,22 @@ function analyzeRectangles(persons, gVertDisplacement) {
  * @returns bestRect
  */
 function reduceRectangles(persons, bestRect) {
-    const app = require('photoshop').app;
-    const gDoc = app.activeDocument;
     let rtn;
     for (let k = 0; k < 5; k++) {
-        if (!isIntersect(persons, bestRect))
-            break;
-        // deflate   
-        bestRect = {
-            "w": bestRect.w * .9,
-            "h": bestRect.h * .9
+        bestRect = hitsTheBottom(persons, bestRect);
+        if (isIntersect(persons, bestRect)) {
+            // deflate   
+            bestRect = {
+                "w": bestRect.w * .9,
+                "h": bestRect.h * .9
+            }
         };
+
     };
-
-    // if a single head shot, the rectangle hits the bottom of the screen, so move it up.
-
-    if ((persons[0].y + bestRect.h / 2) > gDoc.height) {
-        console.log(persons[0].name + " hits the bottom " );
-        persons[0].y = gDoc.height - .1 * bestRect.h ;
-        bestRect = {
-            "w": bestRect.w * .4,
-            "h": bestRect.h * .4
-        };
-    } else {
-        bestRect = {    // allow about 20% overlap    
-            "w": bestRect.w * 1.2,
-            "h": bestRect.h * 1.2
-        };
-    }
+    bestRect = {    // allow about 20% overlap    
+        "w": bestRect.w * 1.2,
+        "h": bestRect.h * 1.2
+    };
     return bestRect;
 };
 
@@ -184,7 +196,6 @@ function reduceRectangles(persons, bestRect) {
 function isIntersect(persons, bestRect) {
 
     for (let i = 0; i < persons.length; i++) {
-
         for (let j = i + 1; j < persons.length; j++) {
             if (intersect(persons[i], persons[j], bestRect)) {
                 console.log(persons[i].name + " intersects " + persons[j].name);
