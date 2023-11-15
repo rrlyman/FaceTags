@@ -11,7 +11,7 @@ function readPersonsFromMetadata(filePath) {
 
     const xmp = require("uxp").xmp;
     const xmpEntry = require('uxp').storage.Entry;
-
+    const constants = require('uxp').xmp.XMPConst;
     let persons = Array();
 
     // NOTE: the x and y point in the metadata is the center of the rectangle for Adobe face Areas. i.e. (x,y) = (top-bottom)/2, (right-left)/2
@@ -30,25 +30,27 @@ function readPersonsFromMetadata(filePath) {
     const xmpMeta = xmpFile.getXMP();  // not listed as async
     //const xmpMeta = new xmp.XMPMeta(getDocumentXMP());
     const ns = "http://www.metadataworkinggroup.com/schemas/regions/";
+    const NSArea = "http://ns.adobe.com/xmp/sType/Area#";
 
     for (let i = 1; i < 1000; i++) {
         // check for unregistered name space, happens if there are no mwg-rs entries in the metadata
-        let personName = "" ;
+        let personName = "";
         try {
-            personName =  xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Name");  // not listed as async
+            personName = xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Name");  // not listed as async
         } catch (e) {
             break;
         }
+
         // x, y, w, and h are in the range 0 to 1.0 and represent a fraction of the document width and height
-        const x = parseFloat(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area/stArea:x"));
+        const x = parseFloat(xmpMeta.getStructField(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area", NSArea, "x"));
 
         // we are done with all the rectangles if we got to the end.
         if (x == undefined || isNaN(x))
             break;
 
-        const y = parseFloat(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area/stArea:y"));
-        const w = parseFloat(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area/stArea:w"));
-        const h = parseFloat(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area/stArea:h"));
+        const y = parseFloat(xmpMeta.getStructField(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area", NSArea, "y"));
+        const w = parseFloat(xmpMeta.getStructField(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area", NSArea, "w"));
+        const h = parseFloat(xmpMeta.getStructField(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area", NSArea, "h"));
 
         // Skip over blank names. Lightroom Classic puts in the rectangle with no name. The name shouws in Lightroom as a '?'
         if (personName == undefined || personName.length == 0)
