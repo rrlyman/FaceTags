@@ -104,6 +104,8 @@ async function openAndTagFileFromDisk(entry) {
     if (!entryTypeIsOK(entry)) // skip over unsupported photo file types
         return false;
     let persons = readPersonsFromMetadata(entry.nativePath);
+    if (persons.length == 0)
+        return false;
     await executeAsModal(() => app.open(entry), { "commandName": "Opening batched File" });
     let aDoc = app.activeDocument;
     if (aDoc != null) {
@@ -303,34 +305,34 @@ async function faceTagTheImage(persons) {
     //  find a common face rectangle size that doesn't intersect the other face rectangles too much, and move the rectangle below the chin
 
     let bestRect = analyzeRectangles(persons, gSettings.vertDisplacement);
+    if ((bestRect.w > 0) && (bestRect.h > 0)) {
 
-    // Put all layers under a group layer, "FaceTags"
+        // Put all layers under a group layer, "FaceTags"
 
-    let faceTagsGroup = await executeAsModal(() => { return aDoc.createLayerGroup({ name: "FaceTags" }) });
+        let faceTagsGroup = await executeAsModal(() => { return aDoc.createLayerGroup({ name: "FaceTags" }) });
 
-    // For each person in the picture, make a text layer containing the persons's name on their chest in a TextItem.
+        // For each person in the picture, make a text layer containing the persons's name on their chest in a TextItem.
 
-    for (let i = 0; (i < persons.length) && (!stopTag); i++) {
-        await addLayer(gSettings, persons[i], bestRect);
+        for (let i = 0; (i < persons.length) && (!stopTag); i++) {
+            await addLayer(gSettings, persons[i], bestRect);
+        }
+
+        // squash all the artlayers into one "FaceTags" layer
+
+        if (gSettings.merge)
+            await executeAsModal(() => { return faceTagsGroup.merge() }, { commandName: "AddingLayer" });
+
+        // apply backdrop effects
+
+        if (gSettings.backStroke)
+            await setOutsideStroke(gSettings);
+
+        // convert to portrait format image
+
+        if (gSettings.portraitMode)
+            await makeAPortrait(aDoc);
+
     }
-
-    // squash all the artlayers into one "FaceTags" layer
-
-    if (gSettings.merge)
-        await executeAsModal(() => { return faceTagsGroup.merge() }, { commandName: "AddingLayer" });
-
-    // apply backdrop effects
-
-    if (gSettings.backStroke)
-        await setOutsideStroke(gSettings);
-
-    // convert to portrait format image
-
-    if (gSettings.portraitMode)
-        await makeAPortrait(aDoc);
-
-
-
 
 };
 
