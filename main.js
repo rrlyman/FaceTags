@@ -191,7 +191,7 @@ function getFaceTagsTreeName(originalName, ents) {
 
 /**
  * Opens up a folder dialog box to select top folder to process
- * Makes a new folder called FaceTaggedPhoto and builds a tree under it that duplicates
+ * Makes a new folder called originalPhotosFolder_n and builds a tree under it that duplicates
  * the source tree. Populates it with tagged photos of the originals.
  * 
  * Annotates each file with the face tag labels for each person found in the file metadata 

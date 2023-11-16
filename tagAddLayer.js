@@ -135,7 +135,7 @@ function analyzeRectangles(persons, gVertDisplacement) {
 
 };
 /**
- * If the face rectangle of a person hits the bottom of the photo, reduce the size of the best rectangle and move the person rectangle up.
+ * If the face rectangle of a person hits the bottom of the photo, move the person rectangle up.
  * @param {*} persons   person rectangles
  * @param {*} bestRect  the width and height of the rectangle to use for all faces
  * @returns 
