@@ -45,7 +45,7 @@ document.getElementById("btnMany").addEventListener("click", () => {
 });
 document.getElementById("btnBatch").addEventListener("click", () => {
 
-    tagBatchFiles(null, null, null);
+    tagBatchFiles(null, null);
 });
 document.getElementById("btnHelp").addEventListener("click", () => {
     dialogs[0].uxpShowModal();
@@ -200,7 +200,7 @@ function getFaceTagsTreeName(originalName, ents) {
  * @param {*} labeledDirectoryFolder     Folder Entry that is navigating the folder tree containing the results of the faceTagging.
  * @returns 
  */
-async function tagBatchFiles(baseName, originalPhotosFolder, labeledDirectoryFolder) {
+async function tagBatchFiles(originalPhotosFolder, labeledDirectoryFolder) {
     const fs = require('uxp').storage.localFileSystem;
     const app = require('photoshop').app;
     let topRecursionLevel = false;
@@ -219,7 +219,6 @@ async function tagBatchFiles(baseName, originalPhotosFolder, labeledDirectoryFol
         disableButtons();  // only enable the Cancel button                
         // create the top level labeledDirectoryFolder
         const ents = await originalPhotosFolder.getEntries();
-        baseName = originalPhotosFolder.name + labeledSuffix;
         newFolder = await originalPhotosFolder.createFolder(getFaceTagsTreeName(originalPhotosFolder.name, ents));
 
 
@@ -236,8 +235,10 @@ async function tagBatchFiles(baseName, originalPhotosFolder, labeledDirectoryFol
             const entry = entries[i];;
 
             // recurse folders
-            if (entry.isFolder && (!entry.name.startsWith(baseName)) && (!entry.name.startsWith("."))) {
-                await tagBatchFiles(baseName, entry, newFolder);
+            if (entry.isFolder &&
+                (!entry.name.includes(labeledSuffix + "_")) &&
+                (!entry.name.startsWith("."))) {
+                await tagBatchFiles(entry, newFolder);
 
             } else {
 

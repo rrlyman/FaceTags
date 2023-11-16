@@ -125,14 +125,12 @@ function analyzeRectangles(persons, gVertDisplacement) {
             "h": h
         };
         persons[i] = person;
-       };
+    };
     const rect = {
         "w": avgWidth,
         "h": avgHeight
     };
     const bestRect = reduceRectangles(persons, rect);
-    //console.log(displayDictionary("average Rectangle = ", rect) + displayDictionary("\tbest Rectangle = ", bestRect));
-
     return bestRect;
 
 };
@@ -147,17 +145,12 @@ function hitsTheBottom(persons, bestRect) {
     const aDoc = app.activeDocument;
 
     for (let i = 0; i < persons.length; i++) {
-        if ((persons[i].y + bestRect.h / 2) > aDoc.height) {       // does it hit bottom      
+        if ((persons[i].y + bestRect.h / 3) > aDoc.height) {       // does it almost hit bottom      
             console.log(persons[i].name + " hits the bottom in " + aDoc.name);
-            bestRect = {
-                "w": bestRect.w * .5,   // reduce best rectangle size
-                "h": bestRect.h * .5
-            };
-            persons[i].y = aDoc.height - .5 * bestRect.h;   // move up
+            persons[i].y = aDoc.height - .2 * bestRect.h;   // move it up
         }
     }
-    return bestRect;
-}
+};
 
 /**
  * keep reducing the size of the average rectangle until there are no intersecting rectangles.
@@ -168,7 +161,6 @@ function hitsTheBottom(persons, bestRect) {
 function reduceRectangles(persons, bestRect) {
     let rtn;
     for (let k = 0; k < 5; k++) {
-        bestRect = hitsTheBottom(persons, bestRect);
         if (isIntersect(persons, bestRect)) {
             // deflate   
             bestRect = {
@@ -176,12 +168,8 @@ function reduceRectangles(persons, bestRect) {
                 "h": bestRect.h * .9
             }
         };
-
     };
-    bestRect = {    // allow about 20% overlap    
-        "w": bestRect.w * 1.2,
-        "h": bestRect.h * 1.2
-    };
+    hitsTheBottom(persons, bestRect);
     return bestRect;
 };
 
@@ -193,7 +181,6 @@ function reduceRectangles(persons, bestRect) {
  * @returns true if there are two rectangles anywhere on the page that intersect,
  */
 function isIntersect(persons, bestRect) {
-
     for (let i = 0; i < persons.length; i++) {
         for (let j = i + 1; j < persons.length; j++) {
             if (intersect(persons[i], persons[j], bestRect)) {
@@ -234,7 +221,7 @@ function intersect(person1, person2, bestRect) {
  * @returns pixels to be used in font size
  */
 function calculatePoints(gSettings, bestRect) {
-    const points = gSettings.fontSize * bestRect.w / gSettings.charsPerFace;  // pixels per character
+    let points = gSettings.fontSize * bestRect.w / gSettings.charsPerFace;  // pixels per character
     if (points < 3.0)
         points = 3.0;
     return points;
