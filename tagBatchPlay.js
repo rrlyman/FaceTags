@@ -148,7 +148,7 @@ function RGBFloatToSolid(rgbFloat) {
     return cl;
 };
 
-var resultOfPicker;
+
 /**
  * Execute a batchPlay command to pick up the label text color
  * @param {string} panelTitle 
@@ -181,14 +181,14 @@ var resultOfPicker;
  */
 
 async function setForeground() {
-   await executeAsModal(() => setColor_actn("Pick Text Foreground Color", gSettings.foreColor), {"commandName": "Pick Name Tag Foreground Color"});
+   let resultOfPicker = await executeAsModal(() => setColor_actn("Pick Text Foreground Color", gSettings.foreColor), {"commandName": "Pick Name Tag Foreground Color"});
    gSettings.foreColor = RGBFloatToSolid(resultOfPicker[0]);
 };
 /**
  * Pick up the background border color for the label and put it in gSettings
  */
 async function setBackground() {
-   await executeAsModal(() => setColor_actn("Pick Text Background Color",gSettings.backColor), {"commandName": "Pick Name Tag Background Color"});
+   let resultOfPicker = await executeAsModal(() => setColor_actn("Pick Text Background Color",gSettings.backColor), {"commandName": "Pick Name Tag Background Color"});
    gSettings.backColor = RGBFloatToSolid(resultOfPicker[0]);
 };
 

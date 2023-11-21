@@ -237,6 +237,7 @@ async function tagBatchFiles(originalPhotosFolder, labeledDirectoryFolder) {
             // recurse folders
             if (entry.isFolder &&
                 (!entry.name.includes(labeledSuffix + "_")) &&
+                (!entry.name.endsWith(labeledSuffix)) &&
                 (!entry.name.startsWith("."))) {
                 await tagBatchFiles(entry, newFolder);
 
