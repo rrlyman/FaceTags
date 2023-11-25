@@ -1,108 +1,16 @@
 
 // copywrite 2023 Richard R. Lyman
-const { executeAsModal } = require("photoshop").core;
+
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
-const { setOutsideStroke, makeAPortrait, trim } = require("./tagBatchPlay.js");
-const { analyzeRectangles, addLayer, displayDictionary } = require("./tagAddLayer.js");
+const { getFaceTagsTreeName, skipThisEntry } = require("./tagFace.js");
 
+const { executeAsModal } = require("photoshop").core;
+const { batchPlay } = require("photoshop").action;
+// Get the object of a File instance
+const fs = require('uxp').storage.localFileSystem;
+const { app, constants } = require("photoshop");
 
-const gifSuffix = "-giffed";
-
-/**
- * 
- * @param {*} entry a UXP File entry for the disk file to be opened and tagged
- * 
- * @returns false if the file type is not on the list to be facetagged or there are no persons to facetag.
- */
-async function openAndTagFileFromDisk(entry) {
-    const app = require('photoshop').app;
-
-    if (!entryTypeIsOK(entry)) // skip over unsupported photo file types
-        return false;
-    let persons = readPersonsFromMetadata(entry.nativePath);
-    if (persons.length == 0)
-        return false;
-    await executeAsModal(() => app.open(entry), { "commandName": "Opening batched File" });
-    let aDoc = app.activeDocument;
-    if (aDoc != null) {
-        await faceTagTheImage(persons);
-    } else {
-        await executeAsModal(() => aDoc.closeWithoutSaving(), { "commandName": "Closing" });
-        await new Promise(r => setTimeout(r, 100));    // required to give time process Cancel Button               
-        return false;
-    }
-
-    await new Promise(r => setTimeout(r, 100));    // required to give time process Cancel Button  
-    return true;
-}
-
-let dontAsk = false; // puts up only one alert for missing metadata when loading a bunch of files
-/**
- * Refreshes the FaceTags for the currently open active document
- */
-async function gifSingleFile() {
-
-    const app = require('photoshop').app;
-    let aDoc = app.activeDocument;
-
-    if (app.documents.length == 0) {
-        alert("No file is loaded. In PhotoShop Classic, load a file before running the script!");
-    } else {
-        let persons = readPersonsFromMetadata(aDoc.path);
-        dontAsk = false;
-        await faceTagTheImage(persons);
-    }
-};
-
-/**
- * Opens up a file dialog box which returns a list of files to process
- * Annotates each file with the face tag labels for each person found in the file metadata 
- * the photos remain loaded in Photoshop
- */
-async function gifMultiFiles() {
-
-    const fs = require('uxp').storage.localFileSystem;
-    const app = require('photoshop').app;
-    disableButtons();
-    // Put up a dialog box, and get a list of file(s) to face tag.
-
-    const files = await fs.getFileForOpening({ allowMultiple: true });
-
-    dontAsk = false; // puts up only one alert for missing metadata when loading a bunch of files
-
-    for (let i = 0; i < files.length && (!stopTag); i++) {
-        if (! await openAndTagFileFromDisk(files[i]))
-            continue;
-    }
-    enableButtons();
-};
-
-/**
- * Determine the suffix of the labeledDirectory folder by finding previous versions and adding 1 to the _n suffix of the folder name.
- */
-/**
- * 
- * @param {*} ents List of files and folders of the top level folder 
- * @returns The name of the labeledDirectory top level folder
- */
-function getFaceTagsTreeName(originalName, ents) {
-    let iMax = 0;
-    let targetFolder = originalName + gifSuffix;
-    for (let i1 = 0; i1 < ents.length; i1++) {
-        if (ents[i1].name.startsWith(targetFolder)) {
-            let results = ents[i1].name.split("_");
-            if (results.length > 1) {
-                let x = Number(results.pop())
-                if (x > iMax) iMax = x;
-            }
-        }
-    }
-    iMax++;
-    let faceName = targetFolder + "_" + iMax.toString();
-    return faceName;
-}
-
-
+let personsIndex = {};  // index of all the best thumbnails, one per year per person
 /**
  * Opens up a folder dialog box to select top folder to process
  * Makes a new folder called originalPhotosFolder_n and builds a tree under it that duplicates
@@ -111,233 +19,240 @@ function getFaceTagsTreeName(originalName, ents) {
  * Annotates each file with the face tag labels for each person found in the file metadata 
  * 
  * @param {*} originalPhotosFolder       Folder Entry that is navigating the folder tree with the original photos. null if is the initial call
- * @param {*} labeledDirectoryFolder     Folder Entry that is navigating the folder tree containing the results of the faceTagging.
+
  * @returns 
  */
-async function gifBatchFiles(originalPhotosFolder, labeledDirectoryFolder) {
-    const fs = require('uxp').storage.localFileSystem;
-    const app = require('photoshop').app;
-    let topRecursionLevel = false;
-    let newFolder = null;
+async function gifBatchFiles(originalPhotosFolder,) {
+   if (originalPhotosFolder == null) {  // null is the initial call
+      originalPhotosFolder = await fs.getFolder();
+      if (originalPhotosFolder == null) {  // null if user cancels dialog              
+         return;
+      }
+      personsIndex = {};
+      disableButtons();  // only enable the Cancel button     
+   }
 
-    dontAsk = true;  // omit no perssons found message
+   // gather all the years of the each person
 
-    // make the newFolder in the FaceTags Tree to hold tagged version of the files in the originalPhotosFolder
+   await createIndex(originalPhotosFolder);
 
-    if (originalPhotosFolder == null) {  // null is the initial call
-        topRecursionLevel = true;
-        originalPhotosFolder = await fs.getFolder();
-        if (originalPhotosFolder == null) {  // null if user cancels dialog              
-            return;
-        }
-        disableButtons();  // only enable the Cancel button                
-        // create the top level labeledDirectoryFolder
-        const ents = await originalPhotosFolder.getEntries();
-        newFolder = await originalPhotosFolder.createFolder(getFaceTagsTreeName(originalPhotosFolder.name, ents));
-
-
-    } else {
-
-        // traverse the labeledDirectory folder with an folder names similar to the original folder tree
-        newFolder = await labeledDirectoryFolder.createFolder(originalPhotosFolder.name + gifSuffix);
-    }
-
-    // process all the files and folders in the originalPhotosFolder
-    if (newFolder != null) {
-        const entries = await originalPhotosFolder.getEntries();
-        for (let i = 0; (i < entries.length) && (!stopTag); i++) {
-            const entry = entries[i];;
-
-            // recurse folders
-            if (entry.isFolder &&
-                (!entry.name.includes(gifSuffix)) &&
-                (!entry.name.startsWith("."))) {
-                await gifBatchFiles(entry, newFolder);
-
-            } else {
-
-                ////////////////////     PAYLOAD START     /////////////////////      
-
-                // Facetag the file                 
-                if (! await openAndTagFileFromDisk(entry))
-                    continue;
-
-                // and save it
-                let aDoc = app.activeDocument;
-                await executeAsModal(() => aDoc.flatten(), { "commandName": "Flattening" });   // required to save png 
-                let fname = aDoc.name.replace(/\.[^/.]+$/, "") + gifSuffix + '.jpg';
-                let saveEntry = await newFolder.createFile(fname); // similar name as original but store on tagged tree.
-                await executeAsModal(() => aDoc.saveAs.jpg(saveEntry), { "commandName": "Saving" });
-                await executeAsModal(() => aDoc.closeWithoutSaving(), { "commandName": "Closing" });
-
-                ////////////////////     PAYLOAD END     /////////////////////      
-
-            }
-        }
-
-        // delete empty folders
-        let ents = await newFolder.getEntries();
-        if (ents.length == 0) {
-            console.log("deleting " + newFolder.name);
-            await newFolder.delete();
-        }
-    }
-
-    if (topRecursionLevel) {
-        enableButtons();
-        console.log("topRecursionLevel");
-    }
+   await makeGifs(originalPhotosFolder, "Big", 300);
+   await makeGifs(originalPhotosFolder, "Little", 70);
+   enableButtons();
 };
-let personsIndex=[];
+/**
+ *    
+ * @param {*} originalPhotosFolder  // top level foldeer containing the photos
+ * @param {*} gifName               // folder name  underneath the top level containing the output gifs
+ * @param {*} gifSize               // size of the gifs in pixels.
+ */
+async function makeGifs(originalPhotosFolder, gifName, gifSize) {
+
+   // create gif folder
+   const ents = await originalPhotosFolder.getEntries();
+   gifFolder = await originalPhotosFolder.createFolder(getFaceTagsTreeName(gifName, ents, gifSuffix));
+
+   for (var personKey in personsIndex) {
+      if (stopTag)
+         break;
+      const dpi = 72;
+      const inflate = 1;
+      let gifDoc = await executeAsModal(() => app.documents.add({
+         width: gifSize,
+         height: gifSize,
+         resolution: dpi,
+         mode: "RGBColorMode",
+         fill: "transparent" 
+      }), { "commandName": "New File" });
+      lastYear = 0;
+      for (var yearKey in personsIndex[personKey]) {
+         if (stopTag)
+            break;
+         if (Number(yearKey) < lastYear)
+            alert("Years are out of order");
+         lastYear = yearKey;
+
+         // make the source rectangle the size of the gif
+         let person = personsIndex[personKey][yearKey];
+         let sourceDoc = await executeAsModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
+
+         const left = person.x - inflate * person.w;
+         const right = person.x + inflate * person.w;
+         const top = person.y  - inflate * person.h;
+         const bottom = person.y  + inflate * person.h;
+         let bounds = { left: Math.max(0, left), top: Math.max(0, top), right: Math.min(sourceDoc.width, right), bottom: Math.min(sourceDoc.height, bottom) };
+ 
+         await executeAsModal(() => sourceDoc.crop(bounds), { "commandName": "Crop File" });
+         await executeAsModal(() => sourceDoc.resizeImage(gifSize, gifSize, dpi), { "commandName": "Resize batched File" });
+
+         // paste the source rectangle into the gifDoc
+
+         await selectAllandCopy();
+         await executeAsModal(() => gifDoc.paste(), { "commandName": "Pasting" });
+         await executeAsModal(() => sourceDoc.closeWithoutSaving(), { "commandName": "Closing" });
+         await new Promise(r => setTimeout(r, 100));    // required to give time to process Cancel Button
+
+      }
+   
+      let fname = personKey + '.gif';
+      if (gifDoc.layers.length > 1) {
+         await makeGif();
+         let saveEntry = await gifFolder.createFile(fname); // similar name as original but store on tagged tree.
+         await executeAsModal(() => gifDoc.saveAs.gif(saveEntry), { "commandName": "Saving" });
+      }
+      await executeAsModal(() => gifDoc.closeWithoutSaving(), { "commandName": "Closing" });
+   }
+
+   console.log("topRecursionLevel");
+};
+
 /** Create an index of all the face rectangles in the folder tree
  * 
  * @param {*} originalPhotosFolder 
  * @returns 
  */
 async function createIndex(originalPhotosFolder) {
-    const fs = require('uxp').storage.localFileSystem;
-    const app = require('photoshop').app;
-    let topRecursionLevel = false;
 
-    if (originalPhotosFolder == null) {  // null is the initial call
-        topRecursionLevel = true;
-  
-        originalPhotosFolder = await fs.getFolder();
-        if (originalPhotosFolder == null) {  // null if user cancels dialog              
-            return;
-        }
-        personsIndex=[];        
-        disableButtons();  // only enable the Cancel button     
-    }
+   // process all the files and folders in the originalPhotosFolder
+   const entries = await originalPhotosFolder.getEntries();
+   for (let i = 0; (i < entries.length) && (!stopTag); i++) {
+      const entry = entries[i];;
 
-    // process all the files and folders in the originalPhotosFolder
-        const entries = await originalPhotosFolder.getEntries();
-        for (let i = 0; (i < entries.length) && (!stopTag); i++) {
-            const entry = entries[i];;
+      if (skipThisEntry(entry))
+         continue;
 
-            // recurse folders
-            if (entry.isFolder &&
-                (!entry.name.includes(gifSuffix+"_")) &&
-                (!entry.name.endsWith(gifSuffix)) &&                
-                (!entry.name.startsWith("."))) {                
-                   await gifBatchFiles(entry, newFolder);
+      // recurse folders
 
-            } else {
+      if (entry.isFolder) {
+         await createIndex(entry);
+      } else {
+         ////////////////////     PAYLOAD START     /////////////////////     
+         let persons = readPersonsFromMetadata(entry);
 
-                ////////////////////     PAYLOAD START     /////////////////////     
-                let personIndex= readPersonsIndexFromMetadata(entry.nativePath);
-                if (personIndex.length == 0)
-                    continue; 
-                else 
-                    personsIndex.concat(personIndex);
-                ////////////////////     PAYLOAD END     /////////////////////      
+         // create a dictionary of person names each of which
+         // has an value of another dictionary with an entry for each year
+         // the value of which is the filename, person name, biggest area face rectange for the year, etc
 
+         for (let i = 0; i < persons.length && (!stopTag); i++) {
+            let person = persons[i];
+            const year = person.dateTaken.split("-")[0];  // year   
+            if (!(person.name in personsIndex))
+               personsIndex[person.name] = {};
+            if (!(year in personsIndex[person.name]) ||
+               !(personsIndex[person.name][year].w * personsIndex[person.name][year].h < person.w * person.h)) {
+               personsIndex[person.name][year] = person;
             }
-        }
-
-    if (topRecursionLevel) {
-        enableButtons();
-        console.log("topRecursionLevel");
-    }
-};
-/**
- *  create face labels for each person rectangle found in the document metadata
- * @param {[{personName, x, y, w, h}]} persons 
- * @returns 
- */
-async function faceTagTheImage(persons) {
-
-    const core = require('photoshop').core;
-    const app = require('photoshop').app;
-
-    let aDoc = app.activeDocument;
-
-    if ((persons != undefined) && (persons.length <= 0)) {
-        const fname = app.activeDocument.path;
-        const txt1 = "No face rectangles were found in the metadata of file  \'" + fname + "\'\.   ";
-        const txt2 = "Identify Faces in Lightroom Classic and save the metadata of the image file to the disk by pressing Ctrl+S (Windows) or Command+S (Mac OS).  ";
-        const txt3 = "It is recommended to facetag a copy of the original file to avoid accidentally saving over the original!  ";
-        if (!dontAsk) alert(txt1 + txt2 + txt3);
-        dontAsk = true;
-        return;
-    }
-
-    persons.sort((a, b) => b.name.toUpperCase().localeCompare(a.name.toUpperCase()));
-
-    // start with clean document  
-    resetHistoryState(aDoc);
-    await executeAsModal(() => aDoc.flatten(), { "commandName": "Flattening" });
-
-    //  find a common face rectangle size that doesn't intersect the other face rectangles too much, and move the rectangle below the chin
-
-    let bestRect = analyzeRectangles(persons, gSettings.vertDisplacement);
-    if ((bestRect.w > 0) && (bestRect.h > 0)) {
-
-        // Put all layers under a group layer, "FaceTags"
-
-        let faceTagsGroup = await executeAsModal(() => { return aDoc.createLayerGroup({ name: "FaceTags" }) });
-
-        // For each person in the picture, make a text layer containing the persons's name on their chest in a TextItem.
-
-        for (let i = 0; (i < persons.length) && (!stopTag); i++) {
-            await addLayer(gSettings, persons[i], bestRect);
-        }
-
-        // squash all the artlayers into one "FaceTags" layer
-
-        if (gSettings.merge)
-            await executeAsModal(() => { return faceTagsGroup.merge() }, { commandName: "AddingLayer" });
-
-        // apply backdrop effects
-
-        if (gSettings.backStroke)
-            await setOutsideStroke(gSettings);
-
-        // convert to portrait format image
-
-        if (gSettings.outputMode==1)
-            await makeAPortrait(aDoc);
-
-    }
-
+         }
+         ////////////////////     PAYLOAD END     /////////////////////                  
+      }
+   }
 };
 
 
-
-
-/**
- * 
- * @param {*} entry a UXP File entry 
- * @returns true if the filetype is on the approved list for Face Tagging
- *          false if the extension is not approved
- */
-function entryTypeIsOK(entry) {
-
-    let flag = false;
-    if (!entry.isFolder) {
-        let fTypes = ['.bmp', /*'gif', */'.jpg', '.jpeg', '.png', '.psb', '.psd', '.tif', '.tiff'];
-        fTypes.forEach((fType) => {
-            let eName = entry.name.toLowerCase();
-            if (eName.endsWith(fType)) {
-                if (eName.replace(fType, "").length > 0)
-                    flag = true;
+async function selectAllandCopy_actn() {
+   const result = await batchPlay(
+      [
+         {
+            _obj: "set",
+            _target: [
+               {
+                  _ref: "channel",
+                  _property: "selection"
+               }
+            ],
+            to: {
+               _enum: "ordinal",
+               _value: "allEnum"
+            },
+            _options: {
+               dialogOptions: "dontDisplay"
             }
-        });
-    }
-    return flag;
+         }
+      ],
+      {}
+   );
+   const result2 = await batchPlay(
+      [
+         {
+            _obj: "copyEvent",
+            copyHint: "pixels",
+            _options: {
+               dialogOptions: "dontDisplay"
+            }
+         }
+      ],
+      {}
+   );
 }
-/**
- * Erase all edits by rewinding to the first history state.
- * @param {*} aDoc // the active document 
- */
-async function resetHistoryState(aDoc) {
-    await executeAsModal(() => {
-        if (aDoc.historyStates[0] != null) aDoc.activeHistoryState = aDoc.historyStates[0];
-    }
-        , { "commandName": "Resetting History" });
-};
 
+async function selectAllandCopy() {
+   await executeAsModal(selectAllandCopy_actn, { "commandName": "Action selectAllandCopy" });
+}
+
+
+async function makeGif_actn() {
+   const result = await batchPlay(
+      [
+         {
+            _obj: "makeFrameAnimation",
+            _options: {
+               dialogOptions: "dontDisplay"
+            }
+         }
+      ],
+      {}
+   );
+   const result1 = await batchPlay(
+      [
+         {
+            _obj: "animationFramesFromLayers",
+            _options: {
+               dialogOptions: "dontDisplay"
+            }
+         }
+      ],
+      {}
+   );
+   const result2 = await batchPlay(
+      [
+         {
+            _obj: "animationSelectAll",
+            _options: {
+               dialogOptions: "dontDisplay"
+            }
+         }
+      ],
+      {}
+   );
+
+   const result3 = await batchPlay(
+      [
+         {
+            _obj: "set",
+            _target: [
+               {
+                  _ref: "animationFrameClass",
+                  _enum: "ordinal",
+                  _value: "targetEnum"
+               }
+            ],
+            to: {
+               _obj: "animationFrameClass",
+               animationFrameDelay: 0.5
+            },
+            _options: {
+               dialogOptions: "dontDisplay"
+            }
+         }
+      ],
+      {}
+   );
+}
+
+async function makeGif() {
+   await executeAsModal(() => makeGif_actn(), { "commandName": "Action Commands" });
+}
 
 module.exports = {
-    gifSingleFile, gifMultiFiles, gifBatchFiles
+   gifBatchFiles
 };

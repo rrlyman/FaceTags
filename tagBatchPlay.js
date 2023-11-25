@@ -1,10 +1,13 @@
+const { batchPlay } = require("photoshop").action;
+
+const { executeAsModal } = require("photoshop").core;
 
 // copywrite 2023 Richard R. Lyman
 
 const { displayDictionary } = require('./tagAddLayer');
 
 
-// Events recognized as notifiers are not re-playable in most of the cases. There is high chance that generated code won't work.
+/* // Events recognized as notifiers are not re-playable in most of the cases. There is high chance that generated code won't work.
 
 
 async function newDocumentFromHistory_actn() {
@@ -34,7 +37,7 @@ async function newDocumentFromHistory() {
    await executeAsModal(newDocumentFromHistory_actn, {"commandName": "Action Commands"});
 }
 
-
+ */
 
 /** Post Processing: add a background around the text for more readability
  * 
@@ -148,7 +151,6 @@ function RGBFloatToSolid(rgbFloat) {
     return cl;
 };
 
-
 /**
  * Execute a batchPlay command to pick up the label text color
  * @param {string} panelTitle 
@@ -156,7 +158,7 @@ function RGBFloatToSolid(rgbFloat) {
  * @returns Promise containing the RGBFloatColor picked from the Photoshop color picker
  */
  async function setColor_actn(panelTitle, startColor) {
-   resultOfPicker = await batchPlay(
+   let resultOfPicker = await batchPlay(
          [
             {
                   _target: { _ref: "application" },
@@ -181,14 +183,14 @@ function RGBFloatToSolid(rgbFloat) {
  */
 
 async function setForeground() {
-   let resultOfPicker = await executeAsModal(() => setColor_actn("Pick Text Foreground Color", gSettings.foreColor), {"commandName": "Pick Name Tag Foreground Color"});
+   resultOfPicker = await executeAsModal(() => setColor_actn("Pick Text Foreground Color", gSettings.foreColor), {"commandName": "Pick Name Tag Foreground Color"});
    gSettings.foreColor = RGBFloatToSolid(resultOfPicker[0]);
 };
 /**
  * Pick up the background border color for the label and put it in gSettings
  */
 async function setBackground() {
-   let resultOfPicker = await executeAsModal(() => setColor_actn("Pick Text Background Color",gSettings.backColor), {"commandName": "Pick Name Tag Background Color"});
+   resultOfPicker = await executeAsModal(() => setColor_actn("Pick Text Background Color",gSettings.backColor), {"commandName": "Pick Name Tag Background Color"});
    gSettings.backColor = RGBFloatToSolid(resultOfPicker[0]);
 };
 
@@ -521,6 +523,6 @@ async function trim() {
 };
 
 module.exports = {
-    setForeground, setBackground, setOutsideStroke,  makeAPortrait, newDocumentFromHistory, trim
+    setForeground, setBackground, setOutsideStroke,  makeAPortrait, trim
 };
 

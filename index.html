@@ -24,15 +24,24 @@
       <sp-button id="btnBackground" size="s">Border Color</sp-button>
       <sp-button id="btnStop" disabled size="s">Cancel</sp-button>
     </div>
+
     <div class="spectrum-ButtonGroup">
       <sp-checkbox id="merge" size="s">Merge Layers</sp-checkbox>
       <sp-checkbox id="backStroke" size="s">Border</sp-checkbox>
-      <sp-checkbox id="portraitMode" size="s">Portrait</sp-checkbox>      
     </div>
-    <p>Vertical Position</p>
-    <sp-slider label="Vertical Position" id="vSlider"></sp-slider>
-    <p>Font Size</p>
+
+   <sp-radio-group id="outputMode">
+        <sp-label slot="label">Output Format:</sp-label>
+        <sp-radio id="rb0" value="0" checked="">Landscape</sp-radio>
+        <sp-radio id="rb1" value="1">Portrait</sp-radio>
+        <sp-radio id="rb2" value="2">GIF</sp-radio>        
+    </sp-radio-group>
+    
+    <label id="label1" class="spectrum-FieldLabel">Vertical Position</label>
+    <sp-slider id="vSlider" label="Vertical Position" ></sp-slider>
+    <label id="label2" class="spectrum-FieldLabel">Font Size</label>
     <sp-slider id="fSlider" label="Font Size" variant="ramp"> </sp-slider>
+   
     <div class="spectrum-ButtonGroup">
       <sp-button id="btnOne" size="s"> Refresh</sp-button>
       <sp-button id="btnMany" size="s"> Files</sp-button>

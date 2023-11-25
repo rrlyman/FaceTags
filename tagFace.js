@@ -5,8 +5,36 @@ const { readPersonsFromMetadata } = require("./tagMetadata.js");
 const { setOutsideStroke, makeAPortrait, trim } = require("./tagBatchPlay.js");
 const { analyzeRectangles, addLayer, displayDictionary } = require("./tagAddLayer.js");
 
+/**
+ * If an entry contains tagged or giffed information, then skip it
+ * @param {*} entry 
+ * @returns true if the entry should be skipped.
+ */
+function skipThisEntry(entry) {
+   
+    let illegalName = 
+    entry.name.includes(gifSuffix + "_") ||
+    entry.name.endsWith(gifSuffix) ||
+    entry.name.includes(labeledSuffix + "_") ||
+    entry.name.endsWith(labeledSuffix) ||
+    entry.name.startsWith(".");
 
-const labeledSuffix = "-labeled";
+
+    let legalType = true;
+    if (!entry.isFolder) {
+        legalType = false;
+        let fTypes = ['.bmp', /*'gif', */'.jpg', '.jpeg', '.png', '.psb', '.psd', '.tif', '.tiff'];
+        fTypes.forEach((fType) => {
+            let eName = entry.name.toLowerCase();
+            if (eName.endsWith(fType)) {
+                if (eName.replace(fType, "").length > 0)
+                legalType = true;
+            }
+        });
+    }
+    return (!legalType) || illegalName;
+    
+};
 
 /**
  * 
@@ -17,9 +45,6 @@ const labeledSuffix = "-labeled";
 async function openAndTagFileFromDisk(entry) {
     const app = require('photoshop').app;
 
-    if (!entryTypeIsOK(entry)) // skip over unsupported photo file types
-        return false;
-    let persons = readPersonsFromMetadata(entry.nativePath);
     if (persons.length == 0)
         return false;
     await executeAsModal(() => app.open(entry), { "commandName": "Opening batched File" });
@@ -36,6 +61,32 @@ async function openAndTagFileFromDisk(entry) {
     return true;
 }
 
+/**
+ * Determine the suffix of the labeledDirectory folder by finding previous versions and adding 1 to the _n suffix of the folder name.
+ */
+/**
+ * 
+ * @param {*} ents List of files and folders of the top level folder 
+ * @returns The name of the labeledDirectory top level folder
+ */
+function getFaceTagsTreeName(originalName, ents, suffix) {
+    let iMax = 0;
+    let targetFolder = originalName + suffix;
+    for (let i1 = 0; i1 < ents.length; i1++) {
+        if (ents[i1].name.startsWith(targetFolder)) {
+            let results = ents[i1].name.split("_");
+            if (results.length > 1) {
+                let x = Number(results.pop())
+                if (x > iMax) iMax = x;
+            }
+        }
+    }
+    iMax++;
+    let faceName = targetFolder + "_" + iMax.toString();
+    return faceName;
+}
+
+
 let dontAsk = false; // puts up only one alert for missing metadata when loading a bunch of files
 /**
  * Refreshes the FaceTags for the currently open active document
@@ -48,7 +99,7 @@ async function tagSingleFile() {
     if (app.documents.length == 0) {
         alert("No file is loaded. In PhotoShop Classic, load a file before running the script!");
     } else {
-        let persons = readPersonsFromMetadata(aDoc.path);
+        let persons = readPersonsFromMetadata(null);
         dontAsk = false;
         await faceTagTheImage(persons);
     }
@@ -78,34 +129,8 @@ async function tagMultiFiles() {
 };
 
 /**
- * Determine the suffix of the labeledDirectory folder by finding previous versions and adding 1 to the _n suffix of the folder name.
- */
-/**
- * 
- * @param {*} ents List of files and folders of the top level folder 
- * @returns The name of the labeledDirectory top level folder
- */
-function getFaceTagsTreeName(originalName, ents) {
-    let iMax = 0;
-    let targetFolder = originalName + labeledSuffix;
-    for (let i1 = 0; i1 < ents.length; i1++) {
-        if (ents[i1].name.startsWith(targetFolder)) {
-            let results = ents[i1].name.split("_");
-            if (results.length > 1) {
-                let x = Number(results.pop())
-                if (x > iMax) iMax = x;
-            }
-        }
-    }
-    iMax++;
-    let faceName = targetFolder + "_" + iMax.toString();
-    return faceName;
-}
-
-
-/**
  * Opens up a folder dialog box to select top folder to process
- * Makes a new folder called originalPhotosFolder_n and builds a tree under it that duplicates
+ * Makes a new folder called originalPhotosFolder-labelled_n and builds a tree under it that duplicates
  * the source tree. Populates it with tagged photos of the originals.
  * 
  * Annotates each file with the face tag labels for each person found in the file metadata 
@@ -133,7 +158,7 @@ async function tagBatchFiles(originalPhotosFolder, labeledDirectoryFolder) {
         disableButtons();  // only enable the Cancel button                
         // create the top level labeledDirectoryFolder
         const ents = await originalPhotosFolder.getEntries();
-        newFolder = await originalPhotosFolder.createFolder(getFaceTagsTreeName(originalPhotosFolder.name, ents));
+        newFolder = await originalPhotosFolder.createFolder(getFaceTagsTreeName(originalPhotosFolder.name, ents, labeledSuffix));
 
 
     } else {
@@ -148,13 +173,13 @@ async function tagBatchFiles(originalPhotosFolder, labeledDirectoryFolder) {
         for (let i = 0; (i < entries.length) && (!stopTag); i++) {
             const entry = entries[i];;
 
-            // recurse folders
-            if (entry.isFolder &&
-                (!entry.name.includes(labeledSuffix+"_")) &&
-                (!entry.name.endsWith(labeledSuffix)) &&                
-                (!entry.name.startsWith("."))) {
-                await tagBatchFiles(entry, newFolder);
+            if (skipThisEntry(entry))
+                continue;
 
+            // recurse folders
+
+            if (entry.isFolder) {
+                await tagBatchFiles(entry, newFolder);
             } else {
 
                 ////////////////////     PAYLOAD START     /////////////////////      
@@ -245,37 +270,13 @@ async function faceTagTheImage(persons) {
 
         // convert to portrait format image
 
-        if (gSettings.outputMode==1)
+        if (gSettings.outputMode == 1)
             await makeAPortrait(aDoc);
 
     }
 
 };
 
-
-
-
-/**
- * 
- * @param {*} entry a UXP File entry 
- * @returns true if the filetype is on the approved list for Face Tagging
- *          false if the extension is not approved
- */
-function entryTypeIsOK(entry) {
-
-    let flag = false;
-    if (!entry.isFolder) {
-        let fTypes = ['.bmp', /*'gif', */'.jpg', '.jpeg', '.png', '.psb', '.psd', '.tif', '.tiff'];
-        fTypes.forEach((fType) => {
-            let eName = entry.name.toLowerCase();
-            if (eName.endsWith(fType)) {
-                if (eName.replace(fType, "").length > 0)
-                    flag = true;
-            }
-        });
-    }
-    return flag;
-}
 /**
  * Erase all edits by rewinding to the first history state.
  * @param {*} aDoc // the active document 
@@ -289,5 +290,5 @@ async function resetHistoryState(aDoc) {
 
 
 module.exports = {
-    tagSingleFile, tagMultiFiles, tagBatchFiles
+    tagSingleFile, tagMultiFiles, tagBatchFiles, getFaceTagsTreeName, skipThisEntry
 };
