@@ -73,7 +73,7 @@ function getFaceTagsTreeName(originalName, ents, suffix) {
     let iMax = 0;
     let targetFolder = originalName + suffix;
     for (let i1 = 0; i1 < ents.length; i1++) {
-        if (ents[i1].name.startsWith(targetFolder)) {
+        if (ents[i1].name.toLowerCase().startsWith(targetFolder.toLowerCase())) {
             let results = ents[i1].name.split("_");
             if (results.length > 1) {
                 let x = Number(results.pop())

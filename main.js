@@ -21,18 +21,25 @@ const { gifBatchFiles } = require("./tagGif.js");
 */
 let gSettings = {};
 let stopTag = false;
-const gifSuffix = "-Gifs";
+const gifSuffix = "-gifs";
 const labeledSuffix = "-labeled";
 
 restorePersistentData();
+console.log(displayDictionary("restorePersistent ", gSettings));
+
 gSettings.charsPerFace = 10;  // not currently adjustable
 
 document.getElementById("merge").checked = gSettings.merge ? 1 : 0;
 document.getElementById("backStroke").checked = gSettings.backStroke ? 1 : 0;
 document.getElementById("outputMode").value = gSettings.outputMode;
-document.getElementById("vSlider").value = (-50 / 3) * gSettings.vertDisplacement + (50 * 3.8 / 3);
-document.getElementById("fSlider").value = (50 / .8) * gSettings.fontSize + (-0.2 * 50 / 0.8);
+document.getElementById("rb0").checked = gSettings.outputMode == 0 ? 1 : 0;
+document.getElementById("rb1").checked = gSettings.outputMode == 1 ? 1 : 0;
+document.getElementById("rb2").checked = gSettings.outputMode == 2 ? 1 : 0;
 
+
+enableButtons(); // also sets sliders
+
+console.log(displayDictionary("after enable ", gSettings));
 let dialogs = new Array();
 
 document.getElementById("btnOne").addEventListener("click", () => {
@@ -60,32 +67,60 @@ document.getElementById("backStroke").addEventListener("change", evt => {
 
 document.getElementById("outputMode").addEventListener("change", evt => {
     console.log(`Selected item: ${evt.target.value}`);
-    gSettings.outputMode = evt.target.value;
+    gSettings.outputMode = parseInt(evt.target.value);
+    localStorage.setItem("outputMode", gSettings.outputMode);
     //tagSingle();
-    enableOutputMode();
+    enableButtons();
 
 });
+document.getElementById("text1").addEventListener("input", evt => {
+    if (gSettings.outputMode < 2) {
+        gSettings.vertDisplacement = parseFloat(evt.target.value);
+        document.getElementById("slider1").value = (-50 / 3) * gSettings.vertDisplacement + (50 * 3.8 / 3);
+        localStorage.setItem("vertDisplacement", gSettings.vertDisplacement);
+        tagSingle();
+    } else {
+        gSettings.gifSize = parseInt(evt.target.value);
+        document.getElementById("slider1").value = gSettings.gifSize / 40;
+        localStorage.setItem("gifSize", gSettings.gifSize);
+
+    }
+});
+document.getElementById("text2").addEventListener("input", evt => {
+    if (gSettings.outputMode < 2) {
+        gSettings.fontSize = parseFloat(evt.target.value);
+        document.getElementById("slider2").value = (50 / .8) * gSettings.fontSize + (-0.2 * 50 / 0.8);
+        localStorage.setItem("fontSize", gSettings.fontSize);
+        tagSingle();
+    } else {
+        gSettings.gifSpeed = parseFloat(evt.target.value);
+        document.getElementById("slider2").value = gSettings.gifSize * 10;
+        localStorage.setItem("gifSpeed", gSettings.gifSpeed);
+
+    }
+});
+
+
 function tagSingle() {
-    if (gSettings.outputMode < 2 ) 
+    if (gSettings.outputMode < 2)
         tagSingleFile();
 
 }
 
 function tagMulti() {
-    if (gSettings.outputMode < 2 ) 
+    if (gSettings.outputMode < 2)
         tagMultiFiles();
 
 }
 
-function tagBatch()
-{
-if (gSettings.outputMode < 2 ) 
-    tagBatchFiles(null,null);
-else
-gifBatchFiles(null);
+function tagBatch() {
+    if (gSettings.outputMode < 2)
+        tagBatchFiles(null, null);
+    else
+        gifBatchFiles(null);
 
 }
-
+document.getElementById("btnForeground")
 document.getElementById("btnForeground").addEventListener("click", evt => {
     setForeground();
     console.log(displayDictionary('gSettings foreColorX', gSettings));
@@ -103,15 +138,29 @@ document.getElementById("btnStop").addEventListener("click", evt => {
     enableButtons();        // this might cure lockup  when moving panel during facetags
     stopTag = true;
 });
-document.getElementById("vSlider").addEventListener("change", evt => {
-    gSettings.vertDisplacement = (evt.target.value - (50 * 3.8 / 3)) / (-50 / 3);
-    localStorage.setItem("vertDisplacement", gSettings.vertDisplacement);
-    tagSingle();
+document.getElementById("slider1").addEventListener("change", evt => {
+    if (gSettings.outputMode < 2) {
+        gSettings.vertDisplacement = (evt.target.value - (50 * 3.8 / 3)) / (-50 / 3);
+        document.getElementById("text1").value = gSettings.vertDisplacement.toString();
+        localStorage.setItem("vertDisplacement", gSettings.vertDisplacement);
+        tagSingle();
+    } else {
+        gSettings.gifSize = Math.max(10, 40 * parseInt(evt.target.value));
+        document.getElementById("text1").value = gSettings.gifSize.toString();
+        localStorage.setItem("gifSize", gSettings.gifSize);
+    }
 });
-document.getElementById("fSlider").addEventListener("change", evt => {
-    gSettings.fontSize = (evt.target.value - (-0.2 * 50 / 0.8)) / (50 / .8);
-    localStorage.setItem("fontSize", gSettings.fontSize);
-    tagSingle();
+document.getElementById("slider2").addEventListener("change", evt => {
+    if (gSettings.outputMode < 2) {
+        gSettings.fontSize = (evt.target.value - (-0.2 * 50 / 0.8)) / (50 / .8);
+        document.getElementById("text2").value = gSettings.fontSize.toString();
+        localStorage.setItem("fontSize", gSettings.fontSize);
+        tagSingle();
+    } else {
+        gSettings.gifSpeed = (parseFloat(evt.target.value) / 10);
+        document.getElementById("text2").value = gSettings.gifSpeed.toString();
+        localStorage.setItem("gifSpeed", gSettings.gifSpeed);
+    }
 });
 
 // load  persistent data
@@ -123,6 +172,8 @@ function restorePersistentData() {
     gSettings.backStroke = (localStorage.getItem("backStroke") || "true") == "true";
     gSettings.outputMode = parseInt((localStorage.getItem("outputMode")) || 0);
     gSettings.fontSize = parseFloat(localStorage.getItem("fontSize") || 1.0);
+    gSettings.gifSpeed = parseFloat((localStorage.getItem("gifSpeed")) || .5);
+    gSettings.gifSize = parseInt(localStorage.getItem("gifSize") || 300);
 
     // SolidColors are stored as a hexValue string.
     const SolidColor = require("photoshop").app.SolidColor;
@@ -133,25 +184,57 @@ function restorePersistentData() {
     console.log(displayDictionary('gSettings', gSettings));
 
 }
+function enableButton(str) {
+    console.log(str);
+    document.getElementById(str).removeAttribute("disabled");
+};
+function disableButton(str) {
+    document.getElementById(str).setAttribute("disabled", "true");
+};
 
-function enableOutputMode() {
-    if (gSettings.outputMode < 2 ) {
-        document.getElementById("merge").removeAttribute("disabled");
-        document.getElementById("backStroke").removeAttribute("disabled");
-        document.getElementById("btnForeground").removeAttribute("disabled");
-        document.getElementById("btnBackground").removeAttribute("disabled");
-        document.getElementById("btnMany").removeAttribute("disabled");
-        document.getElementById("btnBatch").removeAttribute("disabled");
-        document.getElementById("btnOne").removeAttribute("disabled");
-        
+function enableButtons() {
+
+    console.log(displayDictionary("enableButtons enter ", gSettings));
+    let l1 = document.getElementById("label1");
+    let l2 = document.getElementById("label2");
+    if (gSettings.outputMode < 2) {
+        enableButton("merge");
+        enableButton("backStroke");
+        enableButton("btnForeground");
+        enableButton("btnBackground");
+        enableButton("btnOne");
+        enableButton("btnMany");
+        l1.innerHTML = "Vertical Position";
+        l2.innerHTML = "Font Size";
+        document.getElementById("slider1").value = (-50 / 3) * gSettings.vertDisplacement + (50 * 3.8 / 3);
+        document.getElementById("slider2").value = (50 / .8) * gSettings.fontSize + (-0.2 * 50 / 0.8);
+        document.getElementById("text1").value = gSettings.vertDisplacement.toString();
+        document.getElementById("text2").value = gSettings.fontSize.toString();
     } else {
-        document.getElementById("merge").setAttribute("disabled", "true");
-        document.getElementById("backStroke").setAttribute("disabled", "true");
-        document.getElementById("btnForeground").setAttribute("disabled", "true");
-        document.getElementById("btnBackground").setAttribute("disabled", "true");
-        document.getElementById("btnOne").setAttribute("disabled", "true");    
-        document.getElementById("btnMany").setAttribute("disabled", "true");            
+        disableButton("merge");
+        disableButton("backStroke");
+        disableButton("btnForeground");
+        disableButton("btnBackground");
+        disableButton("btnOne");
+        disableButton("btnMany");
+        l1.innerHTML = "Gif Size";
+        l2.innerHTML = "Gif Speed";
+        document.getElementById("slider1").value = gSettings.gifSize / 40;
+        document.getElementById("slider2").value = gSettings.gifSpeed * 10
+        document.getElementById("text1").value = gSettings.gifSize.toString();
+        document.getElementById("text2").value = gSettings.gifSpeed.toString();
     }
+    enableButton("slider1");
+    enableButton("slider2");
+    enableButton("btnBatch");
+    disableButton("btnStop");
+    enableButton("rb0");
+    enableButton("rb1");
+    enableButton("rb2");
+    enableButton("btnHelp");
+
+    stopTag = false;
+    console.log(displayDictionary("enableButtons exit ", gSettings));
 }
 
 function disableButtons() {
@@ -163,28 +246,14 @@ function disableButtons() {
     document.getElementById("rb1").setAttribute("disabled", "true");
     document.getElementById("rb2").setAttribute("disabled", "true");
     document.getElementById("btnHelp").setAttribute("disabled", "true");
-    document.getElementById("vSlider").setAttribute("disabled", "true");
-    document.getElementById("fSlider").setAttribute("disabled", "true");
+    document.getElementById("slider1").setAttribute("disabled", "true");
+    document.getElementById("slider2").setAttribute("disabled", "true");
     document.getElementById("btnForeground").setAttribute("disabled", "true");
     document.getElementById("btnBackground").setAttribute("disabled", "true");
     stopTag = false;
 }
 
-function enableButtons() {
-    document.getElementById("btnStop").setAttribute("disabled", "true");
-    document.getElementById("btnMany").removeAttribute("disabled");
-    document.getElementById("btnBatch").removeAttribute("disabled");
-    document.getElementById("btnOne").removeAttribute("disabled");
-    document.getElementById("rb0").removeAttribute("disabled");
-    document.getElementById("rb1").removeAttribute("disabled");
-    document.getElementById("rb2").removeAttribute("disabled");
-    enableOutputMode();
-    document.getElementById("btnHelp").removeAttribute("disabled");
-    document.getElementById("vSlider").removeAttribute("disabled");
-    document.getElementById("fSlider").removeAttribute("disabled");
 
-    stopTag = false;
-}
 
 
 makeHelpDialogs();

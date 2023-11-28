@@ -1,13 +1,17 @@
 
 // copywrite 2023 Richard R. Lyman
 
+const { analyzeRectangles, addLayer, displayDictionary } = require("./tagAddLayer.js"); displayDictionary
 
+let lastDate = "2021-09-15T00:22:20";
 /**
  * Picks up the metadaa for the photo, parses it to find the People in Metadata Working Group format
- *  * 
+ *  
+ * @param {*} entry // File entry of file to extract metadata. If null, use the Photoshop metadata instead of xmpFile
  * @returns [{personName, x, y, w, h}] Returns a 0 length array if no metadata is found
  */
-function readPersonsFromMetadata(filePath) {
+
+function readPersonsFromMetadata(entry) {
 
     const xmp = require("uxp").xmp;
     const xmpEntry = require('uxp').storage.Entry;
@@ -25,49 +29,95 @@ function readPersonsFromMetadata(filePath) {
 
     // NOTE: XMPFile once in a while gets stuck and either needs Photoshop to be restarted or the computer to be rebooted.
     // getDocumentXMP is more reliable.
+    let xmpMeta;
+    let xmpFile = null;
+    if (entry == null) {
+        xmpMeta = new xmp.XMPMeta(getDocumentXMP());
 
-    const xmpFile = new xmp.XMPFile(filePath, xmp.XMPConst.FILE_JPEG, xmp.XMPConst.OPEN_FOR_READ); // not listed as async
-    const xmpMeta = xmpFile.getXMP();  // not listed as async
-    //const xmpMeta = new xmp.XMPMeta(getDocumentXMP());
+    } else {
+        console.log("filepath =" + entry.nativePath);
+        xmpFile = new xmp.XMPFile(entry.nativePath, xmp.XMPConst.FILE_JPEG, xmp.XMPConst.OPEN_FOR_READ); // not listed as async
+        xmpMeta = xmpFile.getXMP();  // not listed as async
+    }
     const ns = "http://www.metadataworkinggroup.com/schemas/regions/";
     const NSArea = "http://ns.adobe.com/xmp/sType/Area#";
+    const NSCRS = "http://ns.adobe.com/camera-raw-settings/1.0/";
 
-    for (let i = 1; i < 1000; i++) {
-        // check for unregistered name space, happens if there are no mwg-rs entries in the metadata
-        let personName = "";
-        try {
-            personName = xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Name");  // not listed as async
-        } catch (e) {
-            break;
+    try {
+        // pick up essential fields
+        const top = parseFloat(xmpMeta.getProperty(constants.NS_CAMERA_RAW, "crs:CropTop"));
+        const bottom = 1 - parseFloat(xmpMeta.getProperty(constants.NS_CAMERA_RAW, "crs:CropBottom"));
+        const left = parseFloat(xmpMeta.getProperty(constants.NS_CAMERA_RAW, "crs:CropLeft"));
+        const right = 1 - parseFloat(xmpMeta.getProperty(constants.NS_CAMERA_RAW, "crs:CropRight"));
+        const appliedToHeight = parseFloat(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:h"));
+        const appliedToWidth = parseFloat(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:w"));
+        let dateTaken = xmpMeta.getProperty(constants.NS_XMP, "xmp:CreateDate");
+        const dateModified = xmpMeta.getProperty(constants.NS_XMP, "xmp:ModifyDate");
+
+        // value checks
+        if (isNaN(top) || isNaN(bottom) || isNaN(left) || isNaN(right)) {
+            top = left = bottom = right = 0.0;
         }
 
-        // x, y, w, and h are in the range 0 to 1.0 and represent a fraction of the document width and height
-        const x = parseFloat(xmpMeta.getStructField(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area", NSArea, "x"));
+        // adjustments
+        if ((dateTaken == undefined) && (dateModified == undefined))
+            dateTaken = lastDate;
+        else if ((dateTaken == undefined) && (dateModified != undefined))
+            dateTaken = dateModified;
+        lastDate = dateTaken;
 
-        // we are done with all the rectangles if we got to the end.
-        if (x == undefined || isNaN(x))
-            break;
 
-        const y = parseFloat(xmpMeta.getStructField(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area", NSArea, "y"));
-        const w = parseFloat(xmpMeta.getStructField(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area", NSArea, "w"));
-        const h = parseFloat(xmpMeta.getStructField(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area", NSArea, "h"));
+        const xAdj = 1 - (left + right);
+        const yAdj = 1 - (top + bottom);
 
-        // Skip over blank names. Lightroom Classic puts in the rectangle with no name. The name shouws in Lightroom as a '?'
-        if (personName == undefined || personName.length == 0)
-            continue;
+        // skip this photo if any of the following are wrong
+        if (!(xAdj <= 0 || xAdj > 1 || yAdj <= 0 || yAdj > 1 ||
+            isNaN(appliedToHeight) || isNaN(appliedToWidth))) {
 
-        const person = {
-            "name": personName.toString(),
-            "x": x,
-            "y": y,
-            "w": w,
-            "h": h
-        };
-        persons.push(person);
-    };
-    xmpFile.closeFile(0);
+            for (let i = 1; i < 1000; i++) {
+                const personName = xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Name");  // not listed as async
+
+                let x = parseFloat(xmpMeta.getStructField(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area", NSArea, "x"));
+                // we are done with all the rectangles if we got to the end.
+                if (x == undefined || isNaN(x))
+                    break;
+                // Skip over blank names. Lightroom Classic puts in the rectangle with no name. The name shows in Lightroom as a '?'
+                if (personName == undefined || personName.length == 0)
+                    continue;
+                let y = parseFloat(xmpMeta.getStructField(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area", NSArea, "y"));
+                let w = parseFloat(xmpMeta.getStructField(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area", NSArea, "w"));
+                let h = parseFloat(xmpMeta.getStructField(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area", NSArea, "h"));
+
+                // apply adjustments
+                // When a photo is cropped in Lightroom, the appliedToWidth and appliedToHeight are the CROPPED dimensions.
+                // However, the x,y,w,h are the relative (between 0 and 1) coordinates of the face rectangle in the UNCROPPED photo.
+                // To calculate the uncropped photos width and height, the original dimensions are the shrunken appliedTo dimensions
+                // divided by the amount that was cropped out, that is available in CropTop, CropBottom, CropLeft, and CropRight 
+                x = x * appliedToWidth / xAdj;  // x pixel coordinate in the original uncropped photo
+                y = y * appliedToHeight / yAdj; // y pixel coordinate in the original uncropped photo
+                w *= appliedToWidth;            // number of pixels wide
+                h *= appliedToHeight;           // number of pixels high
+
+
+                const person = {
+                    "name": personName.toString(),
+                    "x": x,         // x pixel coordinate in the original uncropped photo
+                    "y": y,         // y pixel coordinate in the original uncropped photo
+                    "w": w,         // rectangle number of pixels wide
+                    "h": h,         // rectangle number of pixels high
+                    "entry": entry, // File pointer for opening in photoshop
+                    "dateTaken": dateTaken.toString()   
+                };
+                persons.push(person);
+            }
+        }
+    } catch (e) { }
+
+    if (xmpFile != null)
+        xmpFile.closeFile(0);
     return persons;
 };
+
 
 /**
  * picks up the metadata of the currently loaded photo in Photoshop
@@ -89,7 +139,6 @@ const getDocumentXMP = () => {
         { synchronousExecution: true }
     )[0].XMPMetadataAsUTF8;
 };
-
 
 module.exports = {
     readPersonsFromMetadata
