@@ -5,7 +5,9 @@ const { makeHelpDialogs } = require("./tagHelp.js");
 const { setForeground, setBackground } = require("./tagBatchPlay.js");
 const { displayDictionary } = require("./tagAddLayer.js");
 const { tagSingleFile, tagMultiFiles, tagBatchFiles } = require("./tagFace.js");
-const { gifBatchFiles } = require("./tagGif.js");
+const { gifBatchFiles, createIndex } = require("./tagGif.js");
+
+
 /**
  * gSettings contains all the persistent preferences
 * @type {
@@ -23,6 +25,9 @@ let gSettings = {};
 let stopTag = false;
 const gifSuffix = "-gifs";
 const labeledSuffix = "-labeled";
+let filterKeyword = "";
+
+let originalPhotosFolder=null;
 
 restorePersistentData();
 console.log(displayDictionary("restorePersistent ", gSettings));
@@ -36,14 +41,16 @@ document.getElementById("rb0").checked = gSettings.outputMode == 0 ? 1 : 0;
 document.getElementById("rb1").checked = gSettings.outputMode == 1 ? 1 : 0;
 document.getElementById("rb2").checked = gSettings.outputMode == 2 ? 1 : 0;
 
-
 enableButtons(); // also sets sliders
 
 console.log(displayDictionary("after enable ", gSettings));
 let dialogs = new Array();
 
 document.getElementById("btnOne").addEventListener("click", () => {
+    if (gSettings.outputMode < 2) 
     tagSingle();
+    else 
+    createIndex();
 });
 document.getElementById("btnMany").addEventListener("click", () => {
     tagMulti();
@@ -100,11 +107,26 @@ document.getElementById("text2").addEventListener("input", evt => {
     }
 });
 
+document.getElementById("dropMenu").addEventListener("change", evt => {
+
+  filterKeyword = evt.target.value;
+  document.getElementById("dropDown").value = filterKeyword;
+// Get the dropdown element
+/* const dropdown =  document.getElementById("dropDown");
+
+// Get the text input element
+const textInput = document.getElementById('textfield1');
+
+// Change the text
+textInput.value = filterKeyword;
+
+// Update the dropdown
+//dropdown.update();   */    
+});
 
 function tagSingle() {
     if (gSettings.outputMode < 2)
         tagSingleFile();
-
 }
 
 function tagMulti() {
@@ -117,7 +139,7 @@ function tagBatch() {
     if (gSettings.outputMode < 2)
         tagBatchFiles(null, null);
     else
-        gifBatchFiles(null);
+        gifBatchFiles();
 
 }
 document.getElementById("btnForeground")
@@ -197,15 +219,20 @@ function enableButtons() {
     console.log(displayDictionary("enableButtons enter ", gSettings));
     let l1 = document.getElementById("label1");
     let l2 = document.getElementById("label2");
+    let b1 = document.getElementById("btnOne");
+    let b2 = document.getElementById("btnBatch");
     if (gSettings.outputMode < 2) {
         enableButton("merge");
         enableButton("backStroke");
         enableButton("btnForeground");
         enableButton("btnBackground");
-        enableButton("btnOne");
+        disableButton("label0");
+        disableButton("dropDown");
         enableButton("btnMany");
         l1.innerHTML = "Vertical Position";
         l2.innerHTML = "Font Size";
+        b1.innerHTML = "Refresh";
+        b2.innerHTML = "Folders";
         document.getElementById("slider1").value = (-50 / 3) * gSettings.vertDisplacement + (50 * 3.8 / 3);
         document.getElementById("slider2").value = (50 / .8) * gSettings.fontSize + (-0.2 * 50 / 0.8);
         document.getElementById("text1").value = gSettings.vertDisplacement.toString();
@@ -215,15 +242,19 @@ function enableButtons() {
         disableButton("backStroke");
         disableButton("btnForeground");
         disableButton("btnBackground");
-        disableButton("btnOne");
+        enableButton("label0");
+        enableButton("dropDown");
         disableButton("btnMany");
         l1.innerHTML = "Gif Size";
         l2.innerHTML = "Gif Speed";
+        b1.innerHTML = "Index" ;  
+        b2.innerHTML = "Make"     
         document.getElementById("slider1").value = gSettings.gifSize / 40;
         document.getElementById("slider2").value = gSettings.gifSpeed * 10
         document.getElementById("text1").value = gSettings.gifSize.toString();
         document.getElementById("text2").value = gSettings.gifSpeed.toString();
     }
+    enableButton("btnOne");
     enableButton("slider1");
     enableButton("slider2");
     enableButton("btnBatch");
@@ -236,6 +267,7 @@ function enableButtons() {
     stopTag = false;
     console.log(displayDictionary("enableButtons exit ", gSettings));
 }
+
 
 function disableButtons() {
     document.getElementById("btnStop").removeAttribute("disabled");

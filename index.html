@@ -7,18 +7,10 @@
   <link rel="stylesheet" href="style.css">
 
 </head>
-<style>
-  .container {
-    display: flex;
-    justify-content: space-between;
-    font-size: 10px;
-    padding: 10px;
-  }
-</style>
 
 <body>
   <sp-heading size="XS">Face Tag </sp-heading>
-  <sp-body id="layers" class="container">
+  <sp-body id="layers">
     <div class="spectrum-ButtonGroup">
       <sp-button id="btnForeground" size="s">Text Color</sp-button>
       <sp-button id="btnBackground" size="s">Border Color</sp-button>
@@ -30,31 +22,43 @@
       <sp-checkbox id="backStroke" size="s">Border</sp-checkbox>
     </div>
 
-   <sp-radio-group id="outputMode">
-        <sp-label slot="label">Output Format:</sp-label>
-        <sp-radio id="rb0" value="0" checked="">Landscape</sp-radio>
-        <sp-radio id="rb1" value="1">Portrait</sp-radio>
-        <sp-radio id="rb2" value="2">GIF</sp-radio>        
+    <sp-radio-group id="outputMode">
+      <sp-radio id="rb0" value="0" checked="">Landscape</sp-radio>
+      <sp-radio id="rb1" value="1">Portrait</sp-radio>
+      <sp-radio id="rb2" value="2">GIF</sp-radio>
     </sp-radio-group>
-    
-    <sp-field-label id = "label1" size="s" for="text1">Vertical Position</sp-field-label>
-    <sp-textfield size="s"  id="text1">Vertical Position 1</sp-textfield>
-    <sp-slider id="slider1" label="Vertical Position" ></sp-slider>
-    
-    <sp-field-label id = "label2" size="s" for="text2">Font Size</sp-field-label>
-    <sp-textfield size="s"  id="text2"></sp-textfield>
-    <sp-slider id="slider2" label="Font Size" variant="ramp"> </sp-slider>
-   
+
+    <div>
+      <sp-label id="label0" size="s" style="width: 80px" for="dropDown">Keywords</sp-label>
+      <sp-dropdown id="dropDown" placeholder="Make a selection...">
+        <sp-menu id="dropMenu" slot="options" selectable>
+        </sp-menu>
+      </sp-dropdown>
+    </div>
+
+    <div>
+      <sp-label id="label1" size="s" style="width: 80px" for="text1">Vertical Position</sp-label>
+      <sp-textfield size="s" style="width: 80px" id="text1">Vertical Position</sp-textfield>
+      <sp-slider id="slider1"></sp-slider>
+    </div>
+
+    <div>
+      <sp-label id="label2" style="width: 80px" size="s" for="text2">Font Size</sp-label>
+      <sp-textfield size="s" id="text2" style="width: 80px"></sp-textfield>
+      <sp-slider id="slider2"> </sp-slider>
+    </div>
+
     <div class="spectrum-ButtonGroup">
       <sp-button id="btnOne" size="s"> Refresh</sp-button>
       <sp-button id="btnMany" size="s"> Files</sp-button>
-      <sp-button id="btnBatch" size="s">Folders</sp-button>     
+      <sp-button id="btnBatch" size="s">Folders</sp-button>
       <sp-button id="btnHelp" size="s"> Help </sp-button>
     </div>
-    <sp-progressbar id="progressBar" max=100 value=0 size="small">
-   </sp-progressbar>
+
+    <sp-progressbar id="progressBar" max=100 value=0 size="small" style="width: 100%">
+    </sp-progressbar>
   </sp-body>
-  
+
 </body>
 
 </html>

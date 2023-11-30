@@ -11,10 +11,36 @@ const fs = require('uxp').storage.localFileSystem;
 const { app, constants } = require("photoshop");
 const imaging = require("photoshop").imaging;
 
+/**
+ * personsIndex is a one to many dictionary, where the key is the person's name, 
+ * Then there is one entry for each year of the person rectangles that were found.
+ * e.g {person.name: {year: person}}   ( definition of the person's rectangle such as 1957: personRick, 1958: personBob etc
+  */
+let personsIndex = {};
 
-let personsIndex = {};  // index of all the best thumbnails, one per year per person
+/**  
+ * subjectIndex is a one to many dictionary, where the key is a subject, such as "reunion" and the many is an array of the names of persons.
+ * The entry is an array of persons that had at least one photo in which they appeared that also had the subject, "reunion".
+ * e.g {subject: [personRick, personBob]}
+ * */
+let subjectIndex = {};   // keys = subjects that are not person names, entries = person names   
 let iFiles = 0;
 let nFiles = 0;
+
+function checkKeywords() {
+   for (let key in subjectIndex) {
+      for (let n = 0; n < subjectIndex[key].length; n++) {
+         if (personsIndex[key] != null) {
+            alert(" bad keyword "+ key + " in file " + personIndex[key].entry.name);
+            //subjectIndex[key][n] = subjectIndex[key][n] + personsIndex[key].entry.name;
+         }
+      }
+
+
+   }
+
+
+}
 /**
  * Opens up a folder dialog box to select top folder to process
  * Makes a new folder called originalPhotosFolder_n and builds a tree under it that duplicates
@@ -24,24 +50,102 @@ let nFiles = 0;
  * 
  * @param {*} originalPhotosFolder       Folder Entry that is navigating the folder tree with the original photos. null if is the initial call
 
- * @returns 
+ * @returns none
  */
-async function gifBatchFiles(originalPhotosFolder,) {
-   if (originalPhotosFolder == null) {  // null is the initial call
-      originalPhotosFolder = await fs.getFolder();
-      if (originalPhotosFolder == null) {  // null if user cancels dialog              
-         return;
+async function createIndex() {
+
+
+   originalPhotosFolder = await fs.getFolder();
+   if (originalPhotosFolder != null) {  // null if user cancels dialog              
+      disableButtons();  // only enable the Cancel button 
+      // gather all the years of the each person
+      nFiles = await countFiles(originalPhotosFolder);
+      iFiles = 0;
+
+      personsIndex = {};  // keys = person names, entries = rectange definitions and subjects
+      subjectIndex = {};   // keys = subjects, entries = person names
+
+      document.getElementById("progressBar").value = "0";
+      await recurseIndex(originalPhotosFolder);
+      // check for illegal keywords
+     // checkKeywords();
+
+      document.getElementById("progressBar").value = "100";
+
+      let menu = document.getElementById("dropMenu");
+      while (menu.options.length > 0)
+         menu.options[0].remove();
+      filterKeyword = "";
+      let subjects = Object.keys(subjectIndex).sort();
+      
+   // purge the subjectIndex of any keywords that are also persons
+   for (let iSubject in subjects) {
+
+      if (personsIndex[subjects[iSubject]]!=undefined) 
+      {
+         delete subjectIndex[subjects[iSubject]];
       }
-      personsIndex = {};
-      disableButtons();  // only enable the Cancel button     
+   }
+   subjects = Object.keys(subjectIndex).sort();
+      for (let iSubject in subjects) {
+         const item = document.createElement("sp-menu-item");
+         item.textContent = subjects[iSubject];
+         menu.appendChild(item);
+      }
+
+      const item = document.createElement("sp-menu-divider");    
+      menu.appendChild(item);
+
+   
+      let persons = Object.keys(personsIndex).sort();
+      for (let iPerson in persons) {
+         const item = document.createElement("sp-menu-item");
+         item.textContent = persons[iPerson];
+         menu.appendChild(item);
+      }
+
+
+      enableButtons();
+   }
+};
+
+/** If the selected filterKeyword from the drop box is "" then use the personsIndex as the source of the names to GIF
+ * If the selected filterKeyword is in the subjectIndex, the use all of the names for filterKeyword in the subjectIndex.
+ * If the selected filtereyword is in the personsIndex, GIF only that person
+ * 
+ * @param {*} newIndex 
+ */
+function filtered() {
+   if (filterKeyword == "")
+      return personsIndex;
+   let newIndex = {};
+
+ 
+   if (subjectIndex[filterKeyword] != undefined) {
+      subjectIndex[filterKeyword].forEach((pName) => {
+         if (personsIndex[pName] != undefined)
+            newIndex[pName] = personsIndex[pName];
+      });
+      return newIndex;
    }
 
-   // gather all the years of the each person
-   nFiles = await countFiles(originalPhotosFolder);
-   iFiles = 0;
-   document.getElementById("progressBar").value = "0";
-   await createIndex(originalPhotosFolder, iFiles, nFiles);
+   if (personsIndex[filterKeyword] != undefined)
+      newIndex[filterKeyword] = personsIndex[filterKeyword];
+   return newIndex;
+};
 
+/** Run the Gifmaker. If the folder tree has not been scanned, then create and index
+ *  Gif everyone, unless a keyword has been selected in the dropDown menu
+ * 
+ */
+async function gifBatchFiles() {
+   // if the index has already been created, then skip index creation
+   if (originalPhotosFolder == null) {
+      await createIndex();
+   }
+
+   let filteredIndex = filtered();
+   disableButtons();
 
    // create gif folder
    const ents = await originalPhotosFolder.getEntries();
@@ -51,10 +155,10 @@ async function gifBatchFiles(originalPhotosFolder,) {
    // go through all the people that were found and make a GIF for each one.
 
    let iPerson = 0;
-   let nPersons = Object.keys(personsIndex).length;
+   let nPersons = Object.keys(filteredIndex).length;
    document.getElementById("progressBar").value = "0";
 
-   for (var personKey in personsIndex) {
+   for (var personKey in filteredIndex) {
       document.getElementById("progressBar").value = (100 * iPerson++ / nPersons).toString();
 
       if (stopTag)
@@ -67,7 +171,7 @@ async function gifBatchFiles(originalPhotosFolder,) {
       // Go through the years and make a frame in the GIF for each year
 
       let lastYear = 0;
-      for (var yearKey in personsIndex[personKey]) {
+      for (var yearKey in filteredIndex[personKey]) {
          if (stopTag)
             break;
          if (Number(yearKey) < lastYear)  // for debugging
@@ -101,23 +205,22 @@ async function gifBatchFiles(originalPhotosFolder,) {
       let fname = personKey + '.gif';
       if (targetDoc.layers.length > 1)
          await makeGif();
-      let saveEntry = await gifFolder.createFile(fname); 
+      let saveEntry = await gifFolder.createFile(fname);
       await executeAsModal(() => targetDoc.saveAs.gif(saveEntry), { "commandName": "Saving" });
       await executeAsModal(() => targetDoc.closeWithoutSaving(), { "commandName": "Closing" });
       targetDoc = null;
    }
-
-   // get rid of anything that is sitting around. This happens if CANCEL button was pressed.
- if (sourceDoc !=null)
-      await executeAsModal(() => sourceDoc.closeWithoutSaving(), { "commandName": "Closing Files" })
-      if (targetDoc !=null)
-      await executeAsModal(() => targetDoc.closeWithoutSaving(), { "commandName": "Closing Files" })   
 
    console.log("topRecursionLevel");
    document.getElementById("progressBar").value = "0";
    enableButtons();
 };
 
+/**for the progress bar, get an overall file ocount.
+ * 
+ * @param {*} folder The root file folder
+ * @returns the number of file entries under the root
+ */
 async function countFiles(folder) {
    let ents = await folder.getEntries();
    let iCount = 0;
@@ -136,13 +239,13 @@ async function countFiles(folder) {
  * @param {*} originalPhotosFolder 
  * @returns 
  */
-async function createIndex(originalPhotosFolder) {
+async function recurseIndex(originalPhotosFolder) {
 
    // process all the files and folders in the originalPhotosFolder
    const entries = await originalPhotosFolder.getEntries();
    for (let i = 0; (i < entries.length) && (!stopTag); i++) {
       const entry = entries[i];;
-      document.getElementById("progressBar").value = (100 * iFiles++ / nFiles).toString();
+      document.getElementById("progressBar").value = (100 * ++iFiles / nFiles).toString();
 
       if (skipThisEntry(entry))
          continue;
@@ -150,17 +253,24 @@ async function createIndex(originalPhotosFolder) {
       // recurse folders
 
       if (entry.isFolder) {
-         await createIndex(entry);
+         await recurseIndex(entry);
       } else {
          ////////////////////     PAYLOAD START     /////////////////////     
-         let persons = readPersonsFromMetadata(entry);
+         let [persons, subjects] = readPersonsFromMetadata(entry);  // persons in the file, with the subject keywords for each person
 
-         // create a dictionary of person names each of which
-         // has an value of another dictionary with an entry for each year
-         // the value of which is the filename, person name, biggest area face rectange for the year, etc
+         // a subject in subjectIndex has an entry for each person that had at least one instance of that subject
 
-         for (let i = 0; i < persons.length && (!stopTag); i++) {
-            let person = persons[i];
+         persons.forEach((person) => {
+            subjects.forEach((subject) => {
+               if (subjectIndex[subject] == undefined)
+                  subjectIndex[subject] = Array(0);
+               subjectIndex[subject].push(person.name);
+            });
+
+            // create a dictionary of person names each of which
+            // has an value of another dictionary with an entry for each year
+            // the value of which is the filename, person name, biggest area face rectange for the year, etc
+
             const year = person.dateTaken.split("-")[0];  // year   
             if (!(person.name in personsIndex))
                personsIndex[person.name] = {};
@@ -168,12 +278,13 @@ async function createIndex(originalPhotosFolder) {
                !(personsIndex[person.name][year].w * personsIndex[person.name][year].h < person.w * person.h)) {
                personsIndex[person.name][year] = person;  // person with the biggest aread (best resolution?) during the year
             }
-         }
-         ////////////////////     PAYLOAD END     /////////////////////                  
+         })
       }
-   }
+      ////////////////////     PAYLOAD END     /////////////////////                  
 
+   }
 };
+
 
 
 
@@ -241,5 +352,5 @@ async function makeGif() {
 }
 
 module.exports = {
-   gifBatchFiles
+   gifBatchFiles, recurseIndex, createIndex
 };

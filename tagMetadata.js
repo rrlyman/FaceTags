@@ -17,6 +17,7 @@ function readPersonsFromMetadata(entry) {
     const xmpEntry = require('uxp').storage.Entry;
     const constants = require('uxp').xmp.XMPConst;
     let persons = Array();
+    let subjects = Array();
 
     // NOTE: the x and y point in the metadata is the center of the rectangle for Adobe face Areas. i.e. (x,y) = (top-bottom)/2, (right-left)/2
     // Elsewhere in this program, we change the anchor point to be the center of the top of the rectangle. 
@@ -53,6 +54,14 @@ function readPersonsFromMetadata(entry) {
         const appliedToWidth = parseFloat(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:w"));
         let dateTaken = xmpMeta.getProperty(constants.NS_XMP, "xmp:CreateDate");
         const dateModified = xmpMeta.getProperty(constants.NS_XMP, "xmp:ModifyDate");
+
+
+        for (let i = 1; i < 1000; i++) {
+            let subject = xmpMeta.getProperty(constants.NS_DC, "dc:subject[" + i + "]");
+            if (subject == undefined)
+                break;
+            subjects.push(subject.toString());
+        }
 
         // value checks
         if (isNaN(top) || isNaN(bottom) || isNaN(left) || isNaN(right)) {
@@ -98,6 +107,8 @@ function readPersonsFromMetadata(entry) {
                 w *= appliedToWidth;            // number of pixels wide
                 h *= appliedToHeight;           // number of pixels high
 
+                // for each person, there is a list of keywords that apply to them
+
 
                 const person = {
                     "name": personName.toString(),
@@ -106,18 +117,35 @@ function readPersonsFromMetadata(entry) {
                     "w": w,         // rectangle number of pixels wide
                     "h": h,         // rectangle number of pixels high
                     "entry": entry, // File pointer for opening in photoshop
-                    "dateTaken": dateTaken.toString()   
+                    "dateTaken": dateTaken.toString()       
                 };
+
                 persons.push(person);
-            }
-        }
+
+  
+            // remove the person from the subjects
+            removeItemAll(subjects, person.name);
+        } 
+    }
+
     } catch (e) { }
 
     if (xmpFile != null)
         xmpFile.closeFile(0);
-    return persons;
+    return [persons, subjects];
 };
 
+function removeItemAll(arr, value) {
+    var i = 0;
+    while (i < arr.length) {
+      if (arr[i] === value) {
+        arr.splice(i, 1);
+      } else {
+        ++i;
+      }
+    }
+    return arr;
+  }
 
 /**
  * picks up the metadata of the currently loaded photo in Photoshop
