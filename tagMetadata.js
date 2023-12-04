@@ -13,9 +13,7 @@ let lastDate = "2021-09-15T00:22:20";
 
 function readPersonsFromMetadata(entry) {
 
-    const xmp = require("uxp").xmp;
-    const xmpEntry = require('uxp').storage.Entry;
-    const constants = require('uxp').xmp.XMPConst;
+
     let persons = Array();
     let subjects = Array();
 
@@ -46,18 +44,18 @@ function readPersonsFromMetadata(entry) {
 
     try {
         // pick up essential fields
-        const top = parseFloat(xmpMeta.getProperty(constants.NS_CAMERA_RAW, "crs:CropTop"));
-        const bottom = 1 - parseFloat(xmpMeta.getProperty(constants.NS_CAMERA_RAW, "crs:CropBottom"));
-        const left = parseFloat(xmpMeta.getProperty(constants.NS_CAMERA_RAW, "crs:CropLeft"));
-        const right = 1 - parseFloat(xmpMeta.getProperty(constants.NS_CAMERA_RAW, "crs:CropRight"));
+        const top = parseFloat(xmpMeta.getProperty(xmpConstants.NS_CAMERA_RAW, "crs:CropTop"));
+        const bottom = 1 - parseFloat(xmpMeta.getProperty(xmpConstants.NS_CAMERA_RAW, "crs:CropBottom"));
+        const left = parseFloat(xmpMeta.getProperty(xmpConstants.NS_CAMERA_RAW, "crs:CropLeft"));
+        const right = 1 - parseFloat(xmpMeta.getProperty(xmpConstants.NS_CAMERA_RAW, "crs:CropRight"));
         const appliedToHeight = parseFloat(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:h"));
         const appliedToWidth = parseFloat(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:w"));
-        let dateTaken = xmpMeta.getProperty(constants.NS_XMP, "xmp:CreateDate");
-        const dateModified = xmpMeta.getProperty(constants.NS_XMP, "xmp:ModifyDate");
+        let dateTaken = xmpMeta.getProperty(xmpConstants.NS_XMP, "xmp:CreateDate");
+        const dateModified = xmpMeta.getProperty(xmpConstants.NS_XMP, "xmp:ModifyDate");
 
 
         for (let i = 1; i < 1000; i++) {
-            let subject = xmpMeta.getProperty(constants.NS_DC, "dc:subject[" + i + "]");
+            let subject = xmpMeta.getProperty(xmpConstants.NS_DC, "dc:subject[" + i + "]");
             if (subject == undefined)
                 break;
             subjects.push(subject.toString());
@@ -152,7 +150,7 @@ function removeItemAll(arr, value) {
  * @returns text buffer containing the metadata
  */
 const getDocumentXMP = () => {
-    const { batchPlay } = require("photoshop").action;
+
     return batchPlay(
         [
             {

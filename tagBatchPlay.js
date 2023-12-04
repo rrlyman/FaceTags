@@ -1,6 +1,5 @@
-const { batchPlay } = require("photoshop").action;
 
-const { executeAsModal } = require("photoshop").core;
+
 
 // copywrite 2023 Richard R. Lyman
 
@@ -50,8 +49,6 @@ async function setOutsideStroke(gSettings) {
 };
 
 async function setOutsideStroke_actn(gSettings) {
-    const app = require('photoshop').app;
-
     const result = await batchPlay(
         [
             {
@@ -142,7 +139,6 @@ async function setOutsideStroke_actn(gSettings) {
  * @returns SolidColor
  */
 function RGBFloatToSolid(rgbFloat) {
-    const SolidColor = require("photoshop").app.SolidColor;
     let cl = new SolidColor();
     cl.rgb.red = rgbFloat.RGBFloatColor.red;
     cl.rgb.green = rgbFloat.RGBFloatColor.grain;
@@ -498,6 +494,63 @@ async function trim_actn() {
 async function trim() {
    await executeAsModal(trim_actn, {"commandName": "Action Commands"});
 }
+// Events recognized as notifiers are not re-playable in most of the cases. There is high chance that generated code won't work.
+
+
+async function selectMoveTool_actn() {
+   const result = await batchPlay(
+      [
+         {
+            _obj: "select",
+            _target: [
+               {
+                  _ref: "zoomTool"
+               }
+            ],
+            _options: {
+               dialogOptions: "dontDisplay"
+            }
+         }
+      ],
+      {}
+   );
+}
+
+async function selectMoveTool() {
+   await executeAsModal(selectMoveTool_actn, {"commandName": "Action Commands"});
+}
+// make background from layer
+
+async function backgroundFromLayer_actn() {
+   const result = await batchPlay(
+      [
+         {
+            _obj: "make",
+            _target: [
+               {
+                  _ref: "backgroundLayer"
+               }
+            ],
+            using: {
+               _ref: "layer",
+               _enum: "ordinal",
+               _value: "targetEnum"
+            },
+            _options: {
+               dialogOptions: "dontDisplay"
+            }
+         }
+      ],
+      {}
+   );
+}
+
+async function backgroundFromLayer() {
+   await executeAsModal(backgroundFromLayer_actn, {"commandName": "Action Commands"});
+}
+
+
+
 
 
 
@@ -519,10 +572,12 @@ async function trim() {
     await makeAnArtboard(dWidth, dHeight);
     await selectBackgroundCopy();
     await moveGrayImage(dHeight); // move increases artboard height
+
     await trim();   // get rid extra space at the bottom
+    await backgroundFromLayer();
 };
 
 module.exports = {
-    setForeground, setBackground, setOutsideStroke,  makeAPortrait, trim
+    setForeground, setBackground, setOutsideStroke,  makeAPortrait, trim, selectMoveTool
 };
 

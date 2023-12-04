@@ -1,13 +1,14 @@
 
 // copywrite 2023 Richard R. Lyman
 const txt = [
+    // Step 1
     '<p>In Lightroom Classic in the Library Loupe view, a rectangle will appear around each person\'s face.&nbsp;' +
     'If there is no rectangle, then click and drag to draw one.' +
     '</p> ' +
     '<p>Type a name or other text into the box above the rectangle.&nbsp;' +
     'This is the text that will show up as a label for each person.'+
     '</p> ',
-
+    // Step 2
     '<p>The rectangle information must be stored in the photo file. &nbsp;' +
     ' Either, edit a copy in Photoshop with Lightroom adjustments, select "Save Metadata to File or &nbsp;' +
     ' press Ctrl+S (Windows) or Command+S (Mac OS).</p> '+
@@ -15,7 +16,7 @@ const txt = [
     '<meta name="viewport" content="width=device-width, initial-scale=1"> '+
       '<p><img src="MetaData.png" ></p>' +    
     '</p> ',
-
+    // Step 3
     '<p>The next step is to go over to PhotoShop 2024 and load the file. &nbsp;' +
         ' There are numerous ways to do this. '+
         '<ul>' +
@@ -26,7 +27,7 @@ const txt = [
         'ALWAYS edit a copy of the photo, since accidentally selecting Yes, when prompted to overwrite a file,&nbsp;' +
         'will cause the image with the labels to be saved.</li>' +
     '</p> ',
-
+    // Step 4
     '<p>After control changes, the face tag program will be automatically rerun.' +
         '<ul>'+
             '<li>"Text Color" selects a color for the text. </li>' +
@@ -41,6 +42,7 @@ const txt = [
             '<li>"Folders" opens a folder picker. Select the parent folder containing the images. A new folder tree, "Facetags_n"  containing the tagged images will be created under the parent folder.</li>'+            
         '</ul>'+
     '</p> ',
+    // Step 5
     '<p>After Tagging the Faces, here are some things to try:' +
         '<ul>' +
             ' <li> Under the Facetags group layer, open the Stroke effects to adjust the type of background. </li>'+
@@ -50,8 +52,45 @@ const txt = [
             ' <li> Manually merge all the layers into the FaceTags layer via the menu item Layers/Merge Group. &nbsp; '+            
             ' NOTE: Clicking on Refresh will delete all edits by rewinding to the initial history state!</li>' +   
         '</ul>'+    
-        '</p>'    ,
-        '<p><img src="Mash_Goes_to_a_Wedding.png"></p>'  
+        '</p>' ,
+    // Step 6
+    '<p>GIF (Graphical Interchange Format)  files are small slideshows that cycle through the frames showing one photo after another. &nbsp; '+
+    ' The GIF maker in this program goes through all your photos, finding all those people who have been identified, then it constructs GIFs, &nbsp; '+
+    ' using one photo per year for each person. The  GIF for an individual, such as “Rick Lyman” is stored in a file “Rick Lyman.gif”. &nbsp; '+
+    ' For an example, go to https://www.uhsclassof65.org/ or https://www.uhsclassof65.org/Clippings/Little-Gifs/' +
+    '</p>',
+    // Step 7        
+    '<p>First build an index. In the File Folder dialog box, choose the root of all you photo files. &nbsp; '+
+    '  This analyzes all the files and folders under the foot folder. '+
+    '</p>',
+     // Step 8
+    '<p></p>',
+          // Step 9
+    '<p>Now select which people to make GIFs for.  If a single person’s name is selected, then only one GIF will be made. &nbsp; '+
+    '  If a keyword has been applied to a number of photos, then GIFs will be made for all the people who were in those photos. &nbsp; ' +
+    '  For instance, if all the senior class mugshots have “Senior Class” keyword, the selecting “Senior Class” from  &nbsp; '+
+    ' the drop down list will cause GIFs to made of all people who were in the senior class.'+
+    '</p>',
+ 
+    '<p>The GIFs are square.  The GIF size is the number of pixels on a side for the resulting GIFs. &nbsp; '+
+    'The Frame Speed is the number of seconds that each frame will display. A small random perturbation is applied&nbsp; '+
+    ' so that a matrix of GIFs will blink randomly. See an example at https://www.uhsclassof65.org/Clippings/Little-Gifs/'+
+    '</p>',
+    // Step 1
+    '<p>After selecting the keyword, GIF size, and GIF speed parameters, push the Make GIFS button to start the process. '+
+    'The output GIFs are placed in a folder underneath the root folder with the same name as the root folder'+
+    ' with “-gifs_1” appended to the name. On each run of the program, it detects whether any of the”-gif”'+
+    ' folders exist and makes a new one. For instance a second run would have the name “-gifs_2” appended'+
+    ' to the root folder name.  This way, there is never a chance of writing over the source photos or previous generated GIFs.'+
+    '</p>',
+        // Step 12
+    '<p>Problems:'+
+        '<ul>'+
+            '<li>"LightRoom does not always write the identified person to the files. '+
+                'If the photo is edited in LightRoom, the person in lightroom rectangle drawn on their face'+
+                ' may be different than the person in stored with the photo in its metadata. '+
+        '</ul>'+
+     '</p>'
 ];
 function helpHtml(i) {
     let x = '<sp-heading>Step &nbsp;' + (i + 1) + '</sp-heading>' +
@@ -133,10 +172,10 @@ function makeHelpDialogs() {
  * Loads an example file and runs the Face Tag
  *  */ 
 async function tryIt() {
-    const fs = require("uxp").storage.localFileSystem;
+
     const pluginFolder = await fs.getPluginFolder();
     const theTemplate = await pluginFolder.getEntry("1stCommunion1954.jpg");
-    const app = require("photoshop").app;
+  
     await app.open(theTemplate);
     await tagSingleFile();
 }

@@ -1,8 +1,7 @@
 
 // copywrite 2023 Richard R. Lyman
-const { executeAsModal } = require("photoshop").core;
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
-const { setOutsideStroke, makeAPortrait, trim } = require("./tagBatchPlay.js");
+const { setOutsideStroke, makeAPortrait, trim, selectMoveTool } = require("./tagBatchPlay.js");
 const { analyzeRectangles, addLayer, displayDictionary } = require("./tagAddLayer.js");
 
 /**
@@ -11,15 +10,13 @@ const { analyzeRectangles, addLayer, displayDictionary } = require("./tagAddLaye
  * @returns true if the entry should be skipped.
  */
 function skipThisEntry(entry) {
-   
-    let illegalName = 
-    entry.name.includes(gifSuffix + "_") ||
-    entry.name.endsWith(gifSuffix) ||
-    entry.name.includes(labeledSuffix + "_") ||
-    entry.name.endsWith(labeledSuffix) ||
-    entry.name.startsWith(".");
 
-
+    let illegalName =
+        entry.name.includes(gifSuffix + "_") ||
+        entry.name.endsWith(gifSuffix) ||
+        entry.name.includes(labeledSuffix + "_") ||
+        entry.name.endsWith(labeledSuffix) ||
+        entry.name.startsWith(".");
     let legalType = true;
     if (!entry.isFolder) {
         legalType = false;
@@ -28,12 +25,12 @@ function skipThisEntry(entry) {
             let eName = entry.name.toLowerCase();
             if (eName.endsWith(fType)) {
                 if (eName.replace(fType, "").length > 0)
-                legalType = true;
+                    legalType = true;
             }
         });
     }
     return (!legalType) || illegalName;
-    
+
 };
 
 /**
@@ -43,8 +40,9 @@ function skipThisEntry(entry) {
  * @returns false if the file type is not on the list to be facetagged or there are no persons to facetag.
  */
 async function openAndTagFileFromDisk(entry) {
-    const app = require('photoshop').app;
-
+    if (skipThisEntry(entry)) // skip over unsupported photo file types
+        return false;
+    let persons = readPersonsFromMetadata(entry)[0];
     if (persons.length == 0)
         return false;
     await executeAsModal(() => app.open(entry), { "commandName": "Opening batched File" });
@@ -93,13 +91,12 @@ let dontAsk = false; // puts up only one alert for missing metadata when loading
  */
 async function tagSingleFile() {
 
-    const app = require('photoshop').app;
     let aDoc = app.activeDocument;
 
     if (app.documents.length == 0) {
         alert("No file is loaded. In PhotoShop Classic, load a file before running the script!");
     } else {
-        let persons = readPersonsFromMetadata(null);
+        let persons = readPersonsFromMetadata(null)[0];
         dontAsk = false;
         await faceTagTheImage(persons);
     }
@@ -111,12 +108,8 @@ async function tagSingleFile() {
  * the photos remain loaded in Photoshop
  */
 async function tagMultiFiles() {
-
-    const fs = require('uxp').storage.localFileSystem;
-    const app = require('photoshop').app;
     disableButtons();
     // Put up a dialog box, and get a list of file(s) to face tag.
-
     const files = await fs.getFileForOpening({ allowMultiple: true });
 
     dontAsk = false; // puts up only one alert for missing metadata when loading a bunch of files
@@ -140,8 +133,7 @@ async function tagMultiFiles() {
  * @returns 
  */
 async function tagBatchFiles(originalPhotosFolder, labeledDirectoryFolder) {
-    const fs = require('uxp').storage.localFileSystem;
-    const app = require('photoshop').app;
+
     let topRecursionLevel = false;
     let newFolder = null;
 
@@ -222,8 +214,7 @@ async function tagBatchFiles(originalPhotosFolder, labeledDirectoryFolder) {
  */
 async function faceTagTheImage(persons) {
 
-    const core = require('photoshop').core;
-    const app = require('photoshop').app;
+
 
     let aDoc = app.activeDocument;
 
@@ -240,8 +231,10 @@ async function faceTagTheImage(persons) {
     persons.sort((a, b) => b.name.toUpperCase().localeCompare(a.name.toUpperCase()));
 
     // start with clean document  
-    resetHistoryState(aDoc);
-    await executeAsModal(() => aDoc.flatten(), { "commandName": "Flattening" });
+    await resetHistoryState(aDoc);
+    await selectMoveTool();
+    if (aDoc.layers.length > 1)
+        await executeAsModal(() => aDoc.flatten(), { "commandName": "Flattening" });
 
     //  find a common face rectangle size that doesn't intersect the other face rectangles too much, and move the rectangle below the chin
 
@@ -282,10 +275,16 @@ async function faceTagTheImage(persons) {
  * @param {*} aDoc // the active document 
  */
 async function resetHistoryState(aDoc) {
+
     await executeAsModal(() => {
-        if (aDoc.historyStates[0] != null) aDoc.activeHistoryState = aDoc.historyStates[0];
+        if (aDoc.historyStates.length > 0) {
+            //console.log("resetting history state");
+            aDoc.activeHistoryState = aDoc.historyStates[0];
+            //console.log("resetting history state2");        
+        }
     }
         , { "commandName": "Resetting History" });
+
 };
 
 

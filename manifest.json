@@ -1,11 +1,11 @@
 {
   "id": "caeaf982",
   "name": "FaceTag",
-  "version": "1.3.9",
+  "version": "1.4.0",
   "main": "index.html",
-    "requiredPermissions": {
-        "localFileSystem": "request"
-    },
+  "requiredPermissions": {
+    "localFileSystem": "request"
+  },
   "host": [
     {
       "app": "PS",
@@ -13,8 +13,11 @@
     }
   ],
   "manifestVersion": 5,
-  "entrypoints": [
+  "featureFlags": {
+    "enableSWCSupport": true
+  },
 
+  "entrypoints": [
     {
       "type": "panel",
       "id": "vanilla",
@@ -27,11 +30,11 @@
         "height": 2000
       },
       "preferredDockedSize": {
-        "width": 310,
+        "width": 280,
         "height": 400
       },
       "preferredFloatingSize": {
-        "width": 310,
+        "width": 280,
         "height": 400
       },
       "icons": [

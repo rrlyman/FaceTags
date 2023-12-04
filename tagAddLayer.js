@@ -29,7 +29,7 @@ function justifyText(gSettings, text) {
  * 
  */
 async function addLayer(gSettings, person, bestRect) {
-    const { executeAsModal } = require("photoshop").core;
+
     await executeAsModal(() => addLayer_actn(gSettings, person, bestRect), { "commandName": "Adding a layer for each person." });
 };
 
@@ -40,9 +40,8 @@ async function addLayer(gSettings, person, bestRect) {
  * @param {*} bestRect {w,h} face rectangle to be used for placing the text
  */
 async function addLayer_actn(gSettings, person, bestRect) {
-    const app = require('photoshop').app;
     const aDoc = app.activeDocument;
-    const constants = require("photoshop").constants;
+
     const bnds = { "_left": person.x - bestRect.w / 2, "_top": person.y, "_bottom": person.y + bestRect.h, "_right": person.x + bestRect.w / 2 };
     const newLayer = await aDoc.createTextLayer({ "name": person.name, bounds: bnds });
     newLayer.textItem.characterStyle.size = calculatePoints(gSettings, bestRect); // zeros the bounds       
@@ -98,7 +97,6 @@ function displayDictionary(str, pEntry) {
  * @returns the target rectangle size for all the persons in the photo
  */
 function analyzeRectangles(persons, gVertDisplacement) {
-    const app = require('photoshop').app;
     const aDoc = app.activeDocument;
     let avgWidth = 0.0;
     let avgHeight = 0.0;
@@ -139,7 +137,6 @@ function analyzeRectangles(persons, gVertDisplacement) {
  * @returns 
  */
 function hitsTheBottom(persons, bestRect) {
-    const app = require('photoshop').app;
     const aDoc = app.activeDocument;
 
     for (let i = 0; i < persons.length; i++) {
@@ -219,10 +216,22 @@ function intersect(person1, person2, bestRect) {
  * @returns pixels to be used in font size
  */
 function calculatePoints(gSettings, bestRect) {
-    let points = gSettings.fontSize * bestRect.w / gSettings.charsPerFace;  // pixels per character
+    aDoc = app.activeDocument;
+
+
+    const inchesPerRectangle =  bestRect.w/ aDoc.resolution;
+    const points1Char = 72*inchesPerRectangle; // a single character across the rectangle
+    const pointsNcharacters = points1Char/gSettings.charsPerFace;
+
+    // simplified (bestRect.w/ aDoc.resolution) *72 / gSettings.charsPerFace;
+
+    let points = gSettings.fontSize * bestRect.w / (gSettings.charsPerFace);  // pixels per character
     if (points < 3.0)
         points = 3.0;
     return points;
+
+    // alternatively, leave out the bestRect
+    // return gSettings.fontSize;
 };
 
 module.exports = {

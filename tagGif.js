@@ -4,12 +4,8 @@
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
 const { getFaceTagsTreeName, skipThisEntry } = require("./tagFace.js");
 
-const { executeAsModal } = require("photoshop").core;
-const { batchPlay } = require("photoshop").action;
-// Get the object of a File instance
-const fs = require('uxp').storage.localFileSystem;
-const { app, constants } = require("photoshop");
-const imaging = require("photoshop").imaging;
+
+
 
 /**
  * personsIndex is a one to many dictionary, where the key is the person's name, 

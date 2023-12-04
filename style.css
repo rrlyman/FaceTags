@@ -1,6 +1,6 @@
 body {
   color: white;
-  padding: 0 16px;
+  padding: 0 8px 0; 
 }
 
 li:before {
@@ -8,15 +8,18 @@ li:before {
   width: 3em;
 }
 
-#layers {
+.step {
   border: 1px solid #808080;
   border-radius: 4px;
-  padding: 16px;
+  font-size: 14px;
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
 footer {
   color: white;
-  padding: 0 16px;
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
 li:before {
@@ -24,10 +27,40 @@ li:before {
   width: 3em;
 }
 
-#layers {
-  border: 1px solid #808080;
-  border-radius: 4px;
-  padding: 16px;
+sp-body {
+  flex: 1 1 auto;
+}
+.btn {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
 }
 
+div {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
 
+.sp-tab-page {
+    display: none;
+    flex: 1 1 auto;
+    overflow: scroll;
+    /* padding: 12px 0; */
+    flex-direction: column;
+}
+.sp-tab-page.visible {
+    display: flex;
+}
+.sp-tab-page > * {
+  flex: 0 0 auto;
+}
+sp-textfield {
+  width: 80px;
+}
+
+sp-label {
+  width: 100px;
+}
+sp-slider {
+  width: 100%;
+}
