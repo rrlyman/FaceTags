@@ -56,8 +56,8 @@ const txt = [
     // Step 6
     '<p>GIF (Graphical Interchange Format)  files are small slideshows that cycle through the frames showing one photo after another. &nbsp; '+
     ' The GIF maker in this program goes through all your photos, finding all those people who have been identified, then it constructs GIFs, &nbsp; '+
-    ' using one photo per year for each person. The  GIF for an individual, such as “Rick Lyman” is stored in a file “Rick Lyman.gif”. &nbsp; '+
-    ' For an example, go to https://www.uhsclassof65.org/ or https://www.uhsclassof65.org/Clippings/Little-Gifs/' +
+    ' using one photo for each person. The  GIF for an individual, such as “Rick Lyman” is stored in a file “Rick Lyman.gif”. &nbsp; '+
+    ' For an examples, go to https://www.uhsclassof65.org/ or https://www.uhsclassof65.org/Clippings/Little-Gifs/' +
     '</p>',
     // Step 7        
     '<p>First build an index. In the File Folder dialog box, choose the root of all you photo files. &nbsp; '+
@@ -65,25 +65,25 @@ const txt = [
     '</p>',
      // Step 8
     '<p></p>',
-          // Step 9
+    // Step 9
     '<p>Now select which people to make GIFs for.  If a single person’s name is selected, then only one GIF will be made. &nbsp; '+
     '  If a keyword has been applied to a number of photos, then GIFs will be made for all the people who were in those photos. &nbsp; ' +
     '  For instance, if all the senior class mugshots have “Senior Class” keyword, the selecting “Senior Class” from  &nbsp; '+
     ' the drop down list will cause GIFs to made of all people who were in the senior class.'+
     '</p>',
- 
+    // Step 10
     '<p>The GIFs are square.  The GIF size is the number of pixels on a side for the resulting GIFs. &nbsp; '+
     'The Frame Speed is the number of seconds that each frame will display. A small random perturbation is applied&nbsp; '+
     ' so that a matrix of GIFs will blink randomly. See an example at https://www.uhsclassof65.org/Clippings/Little-Gifs/'+
     '</p>',
-    // Step 1
+    // Step 11
     '<p>After selecting the keyword, GIF size, and GIF speed parameters, push the Make GIFS button to start the process. '+
     'The output GIFs are placed in a folder underneath the root folder with the same name as the root folder'+
     ' with “-gifs_1” appended to the name. On each run of the program, it detects whether any of the”-gif”'+
     ' folders exist and makes a new one. For instance a second run would have the name “-gifs_2” appended'+
     ' to the root folder name.  This way, there is never a chance of writing over the source photos or previous generated GIFs.'+
     '</p>',
-        // Step 12
+    // Step 12
     '<p>Problems:'+
         '<ul>'+
             '<li>"LightRoom does not always write the identified person to the files. '+
@@ -93,7 +93,10 @@ const txt = [
      '</p>'
 ];
 function helpHtml(i) {
-    let x = '<sp-heading>Step &nbsp;' + (i + 1) + '</sp-heading>' +
+    let y = "";
+     if(i<5)
+        y= '<sp-button class="btnTest"> Try It </sp-button> ' ;
+     let x =/*  '<sp-heading>Step &nbsp;' + (i + 1) + '</sp-heading>' + */
         '<sp-body Width="600px" Height="500px">' +
         '<meta name="viewport" content="width=device-width, initial-scale=1"> '+
         '<style> '+
@@ -116,7 +119,7 @@ function helpHtml(i) {
         '</sp-body><footer class="container">' +
             '<sp-button class="btnPrev">Prev</sp-button>'+           
             '<sp-button class="btnCancel">Cancel</sp-button>'+  
-            '<sp-button class="btnTest"> Try It </sp-button> ' +                       
+            y +                       
             '<sp-button class="btnNext"> Next </sp-button> ' +  
         '</footer>';
     return x;
@@ -164,7 +167,6 @@ function makeHelpDialogs() {
         tryIt();
         });
     });
-
 };
 
 

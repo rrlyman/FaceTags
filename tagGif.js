@@ -8,27 +8,27 @@ const { getFaceTagsTreeName, skipThisEntry } = require("./tagFace.js");
 
 
 /**
- * personsIndex is a one to many dictionary, where the key is the person's name, 
- * Then there is one entry for each year of the person rectangles that were found.
- * e.g {person.name: {year: person}}   ( definition of the person's rectangle such as 1957: personRick, 1958: personBob etc
+ * personsDict is a one to many dictionary, where the key is the person's name, 
+ * Then there is one entry for each days of the person rectangles that were found.
+ * e.g {person.name: {days: person}}   ( definition of the person's rectangle such as 1957: personRick, 1958: personBob etc
   */
-let personsIndex = {};
+let personsDict = {};
 
 /**  
- * subjectIndex is a one to many dictionary, where the key is a subject, such as "reunion" and the many is an array of the names of persons.
+ * subjectDict is a one to many dictionary, where the key is a subject, such as "reunion" and the many is an array of the names of persons.
  * The entry is an array of persons that had at least one photo in which they appeared that also had the subject, "reunion".
  * e.g {subject: [personRick, personBob]}
  * */
-let subjectIndex = {};   // keys = subjects that are not person names, entries = person names   
+let subjectDict = {};   // keys = subjects that are not person names, entries = person names   
 let iFiles = 0;
 let nFiles = 0;
 
 function checkKeywords() {
-   for (let key in subjectIndex) {
-      for (let n = 0; n < subjectIndex[key].length; n++) {
-         if (personsIndex[key] != null) {
-            alert(" bad keyword "+ key + " in file " + personIndex[key].entry.name);
-            //subjectIndex[key][n] = subjectIndex[key][n] + personsIndex[key].entry.name;
+   for (let key in subjectDict) {
+      for (let n = 0; n < subjectDict[key].length; n++) {
+         if (personsDict[key] != null) {
+            alert(" bad keyword " + key + " in file " + personIndex[key].entry.name);
+            //subjectDict[key][n] = subjectDict[key][n] + personsDict[key].entry.name;
          }
       }
 
@@ -58,76 +58,78 @@ async function createIndex() {
       nFiles = await countFiles(originalPhotosFolder);
       iFiles = 0;
 
-      personsIndex = {};  // keys = person names, entries = rectange definitions and subjects
-      subjectIndex = {};   // keys = subjects, entries = person names
+      personsDict = {};  // keys = person names, entries = rectange definitions and subjects
+      subjectDict = {};   // keys = subjects, entries = person names
 
       document.getElementById("progressBar").value = "0";
       await recurseIndex(originalPhotosFolder);
+
       // check for illegal keywords
-     // checkKeywords();
+      // checkKeywords();
 
       document.getElementById("progressBar").value = "100";
 
+      // clean out the keyword list on the panel
       let menu = document.getElementById("dropMenu");
       while (menu.options.length > 0)
          menu.options[0].remove();
       filterKeyword = "";
-      let subjects = Object.keys(subjectIndex).sort();
-      
-   // purge the subjectIndex of any keywords that are also persons
-   for (let iSubject in subjects) {
+      let subjects = Object.keys(subjectDict).sort();
 
-      if (personsIndex[subjects[iSubject]]!=undefined) 
-      {
-         delete subjectIndex[subjects[iSubject]];
+      // purge the subjectDict of any keywords that are also persons
+      // This occurs when there is a person name in a photo that but there is no person rectangle for tem.
+      for (let iSubject in subjects) {
+         if (personsDict[subjects[iSubject]] != undefined) {
+            delete subjectDict[subjects[iSubject]];
+         }
       }
-   }
-   subjects = Object.keys(subjectIndex).sort();
+
+      // sort them so the dropdown is nicely sorted
+      subjects = Object.keys(subjectDict).sort();
       for (let iSubject in subjects) {
          const item = document.createElement("sp-menu-item");
          item.textContent = subjects[iSubject];
          menu.appendChild(item);
       }
 
-      const item = document.createElement("sp-menu-divider");    
+      const item = document.createElement("sp-menu-divider");
       menu.appendChild(item);
 
-   
-      let persons = Object.keys(personsIndex).sort();
+      // now add anyone to the dropdown who has a person rectangle
+      let persons = Object.keys(personsDict).sort();
       for (let iPerson in persons) {
          const item = document.createElement("sp-menu-item");
          item.textContent = persons[iPerson];
          menu.appendChild(item);
       }
 
-
       enableButtons();
    }
 };
 
-/** If the selected filterKeyword from the drop box is "" then use the personsIndex as the source of the names to GIF
- * If the selected filterKeyword is in the subjectIndex, the use all of the names for filterKeyword in the subjectIndex.
- * If the selected filtereyword is in the personsIndex, GIF only that person
+/** If the selected filterKeyword from the drop box is "" then use the personsDict as the source of the names to GIF
+ * If the selected filterKeyword is in the subjectDict, the use all of the names for filterKeyword in the subjectDict.
+ * If the selected filtereyword is in the personsDict, GIF only that person
  * 
- * @param {*} newIndex 
+ * @param {*} newDict  a filtered version of the personsDict
  */
 function filtered() {
    if (filterKeyword == "")
-      return personsIndex;
-   let newIndex = {};
+      return personsDict;
+   let newDict = {};
 
- 
-   if (subjectIndex[filterKeyword] != undefined) {
-      subjectIndex[filterKeyword].forEach((pName) => {
-         if (personsIndex[pName] != undefined)
-            newIndex[pName] = personsIndex[pName];
+
+   if (subjectDict[filterKeyword] != undefined) {
+      subjectDict[filterKeyword].forEach((pName) => {
+         if (personsDict[pName] != undefined)
+            newDict[pName] = personsDict[pName];
       });
-      return newIndex;
+      return newDict;
    }
 
-   if (personsIndex[filterKeyword] != undefined)
-      newIndex[filterKeyword] = personsIndex[filterKeyword];
-   return newIndex;
+   if (personsDict[filterKeyword] != undefined)
+      newDict[filterKeyword] = personsDict[filterKeyword];
+   return newDict;
 };
 
 /** Run the Gifmaker. If the folder tree has not been scanned, then create and index
@@ -139,8 +141,10 @@ async function gifBatchFiles() {
    if (originalPhotosFolder == null) {
       await createIndex();
    }
-
-   let filteredIndex = filtered();
+   /**
+    * a filtered version of the personsDict
+    */
+   let filteredDict = filtered();
    disableButtons();
 
    // create gif folder
@@ -151,10 +155,10 @@ async function gifBatchFiles() {
    // go through all the people that were found and make a GIF for each one.
 
    let iPerson = 0;
-   let nPersons = Object.keys(filteredIndex).length;
+   let nPersons = Object.keys(filteredDict).length;
    document.getElementById("progressBar").value = "0";
 
-   for (var personKey in filteredIndex) {
+   for (var personKey in filteredDict) {
       document.getElementById("progressBar").value = (100 * iPerson++ / nPersons).toString();
 
       if (stopTag)
@@ -166,16 +170,21 @@ async function gifBatchFiles() {
       // For each person, there was an entry, one per year.
       // Go through the years and make a frame in the GIF for each year
 
-      let lastYear = 0;
-      for (var yearKey in filteredIndex[personKey]) {
-         if (stopTag)
-            break;
-         if (Number(yearKey) < lastYear)  // for debugging
-            alert("Years are out of order");
-         lastYear = yearKey;
 
+      // dictionaries can be unordered so make an ordered array
+
+      let msKeys = Object.keys(filteredDict[personKey]).sort((function (a, b) {
+         return Number(a) - Number(b);
+      }));
+      let lastDay = -1.0 * 10 ** 27;
+      for (let i = 0; i < msKeys.length; i++) {
+         let msKey = msKeys[i];
+         let thisDay = msKey / (1000 * 60 * 60);
+         if ((thisDay - gSettings.days) < lastDay)
+            continue;
+         lastDay = thisDay;
          // make the source image the same size as the gif
-         let person = personsIndex[personKey][yearKey];
+         let person = personsDict[personKey][msKey];
          let sourceDoc = await executeAsModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
 
          const left = person.x - inflate * person.w;
@@ -254,26 +263,22 @@ async function recurseIndex(originalPhotosFolder) {
          ////////////////////     PAYLOAD START     /////////////////////     
          let [persons, subjects] = readPersonsFromMetadata(entry);  // persons in the file, with the subject keywords for each person
 
-         // a subject in subjectIndex has an entry for each person that had at least one instance of that subject
+         // a subject in subjectDict has an entry for each person that had at least one instance of that subject
 
          persons.forEach((person) => {
             subjects.forEach((subject) => {
-               if (subjectIndex[subject] == undefined)
-                  subjectIndex[subject] = Array(0);
-               subjectIndex[subject].push(person.name);
+               if (subjectDict[subject] == undefined)
+                  subjectDict[subject] = Array(0);
+               subjectDict[subject].push(person.name);
             });
 
-            // create a dictionary of person names each of which
-            // has an value of another dictionary with an entry for each year
-            // the value of which is the filename, person name, biggest area face rectange for the year, etc
+            const millisTaken = person.dateTaken.getTime();
 
-            const year = person.dateTaken.split("-")[0];  // year   
-            if (!(person.name in personsIndex))
-               personsIndex[person.name] = {};
-            if (!(year in personsIndex[person.name]) ||
-               !(personsIndex[person.name][year].w * personsIndex[person.name][year].h < person.w * person.h)) {
-               personsIndex[person.name][year] = person;  // person with the biggest aread (best resolution?) during the year
-            }
+            if (!(person.name in personsDict))
+               personsDict[person.name] = {};
+
+            personsDict[person.name][millisTaken] = person;
+
          })
       }
       ////////////////////     PAYLOAD END     /////////////////////                  

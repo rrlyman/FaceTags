@@ -240,6 +240,38 @@ async function copyBackGroundLayer() {
 
 
 
+
+async function reduceBrightness_actn() {
+   const result = await batchPlay(
+      [
+         {
+            _obj: "make",
+            _target: [
+               {
+                  _ref: "adjustmentLayer"
+               }
+            ],
+            using: {
+               _obj: "adjustmentLayer",
+               type: {
+                  _obj: "brightnessEvent",
+                  useLegacy: false
+               }
+            },
+            _options: {
+               dialogOptions: "dontDisplay"
+            }
+         }
+      ],
+      {}
+   );
+}
+
+async function reduceBrightness() {
+   await executeAsModal(reduceBrightness_actn, {"commandName": "Action Commands"});
+}
+
+
 async function reduceOpacity_actn() {
     const result = await batchPlay(
        [
@@ -550,11 +582,31 @@ async function backgroundFromLayer() {
 }
 
 
+async function brightnessAndContrast_actn() {
+   const result = await batchPlay(
+      [
+         {
+            _obj: "brightnessEvent",
+            brightness: 57,
+            center: -50,
+            useLegacy: false,
+            _options: {
+               dialogOptions: "dontDisplay"
+            }
+         }
+      ],
+      {}
+   );
+}
 
+async function brightnessAndContrast() {
+   await executeAsModal(brightnessAndContrast_actn, {"commandName": "Action Commands"});
+}
 
 
 
 /**
+ * When called, a landscape mode face tagged version of the photo has been created.  The text is in the FaceTags group
  * Make an artboard, twice as tall as the original photo, containing the original photo on the top half
  * and a dimly gray version of the photo ont he bottom half with the Person names on each person
  * @param {*} gDoc 
@@ -563,18 +615,16 @@ async function backgroundFromLayer() {
  async function makeAPortrait(gDoc) {
     let dWidth = gDoc.width;
     let dHeight = gDoc.height;
-    await selectBackgroundLayer();
-    await copyBackGroundLayer();
-    await reduceOpacity();  
-   // await blackAndWhite();    
-    await addSelectFaceTags();
-    await linkLayers() ;
+    // at this point there are two layers, the background layer and the FaceTags Group with text
+    await selectBackgroundLayer();  // the selection was on Facetags, move selection to the background
+    await copyBackGroundLayer();    // make a background copy layer
+    await reduceOpacity();          // this reduces the opacity of the 'background copy' layer
+    await addSelectFaceTags();      // adds to the 'background copy' selection the facetags so two layers are selected
+    await linkLayers() ;            // links the selected layers: 'background copy' and Facetags
     await makeAnArtboard(dWidth, dHeight);
-    await selectBackgroundCopy();
-    await moveGrayImage(dHeight); // move increases artboard height
-
+    await selectBackgroundCopy();   // selects the linked layers
+    await moveGrayImage(dHeight);   // move increases artboard height and moves the facetagged images to the bottom of the artboard
     await trim();   // get rid extra space at the bottom
-    await backgroundFromLayer();
 };
 
 module.exports = {

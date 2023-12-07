@@ -30,6 +30,7 @@ const imaging = require("photoshop").imaging;
 * foreColor: SolidColor,
 * backColor SolidColor,
 * charsPerFace : number,
+* days: number
 * }}
 */
 let gSettings = {};
@@ -38,15 +39,16 @@ const gifSuffix = "-gifs";
 const labeledSuffix = "-labeled";
 let filterKeyword = "";
 let originalPhotosFolder = null;
-const idList = ["rb0", "rb1", "rb2", "btnHelp", "btnTagFile", "btnTagFolder", "tagRefreshBtn", "verticalPositionSlider", "fontSizeSlider", "btnForeground",
-    "btnBackground", "keywordDropDown", "dropMenu", "gifSpeedText", "gifSizeText", "createIndex", "makeGIFs", "gifSizeSlider", "gifSpeedSlider"];
+const idList = ["rb0", "rb1", "rb2", "rb02", "rb12", "rb22",  "btnHelp", "btnHelp2","btnTagFile", "btnTagFolder", "tagRefreshBtn", "verticalPositionSlider", "fontSizeSlider", "btnForeground",
+    "btnBackground", "keywordDropDown", "dropMenu", "gifSpeedText", "gifSizeText", "createIndex", "makeGIFs", "gifSizeSlider", "gifSpeedSlider","daysSlider"];
 
 
 const limits = {
     gifSize: { minR: 10, maxR: 2160 },
     fontSize: { minR: .1, maxR: 3 },
-    gifSpeed: { minR: .1, maxR: 20 },
-    vertDisplacement: { minR: 3, maxR: -2 }
+    gifSpeed: { minR: 0, maxR: 20 },
+    vertDisplacement: { minR: 3, maxR: -2 },
+    days: { minR: 0, maxR: 1000 },
 }
 /**
  * given a value, compute a slider (0,100) setting from the value
@@ -74,16 +76,25 @@ gSettings.charsPerFace = 10;  // not currently adjustable
 document.getElementById("merge").checked = gSettings.merge ? 1 : 0;
 document.getElementById("backStroke").checked = gSettings.backStroke ? 1 : 0;
 document.getElementById("outputMode").value = gSettings.outputMode;
+document.getElementById("outputMode2").value = gSettings.outputMode;
+
+function setOutputModeChecked() {
 document.getElementById("rb0").checked = gSettings.outputMode == 0 ? 1 : 0;
 document.getElementById("rb1").checked = gSettings.outputMode == 1 ? 1 : 0;
 document.getElementById("rb2").checked = gSettings.outputMode == 2 ? 1 : 0;
+document.getElementById("rb02").checked = gSettings.outputMode == 0 ? 1 : 0;
+document.getElementById("rb12").checked = gSettings.outputMode == 1 ? 1 : 0;
+document.getElementById("rb22").checked = gSettings.outputMode == 2 ? 1 : 0;
+};
+
 document.getElementById("keywordDropDown").value = filterKeyword;
 
 document.getElementById("gifSpeedText").value = gSettings.gifSpeed.toString();
 document.getElementById("gifSizeText").value = gSettings.gifSize.toString();
 document.getElementById("fontSizeText").value = gSettings.fontSize.toString();
 document.getElementById("verPosText").value = gSettings.vertDisplacement.toString();
-
+document.getElementById("daysSlider").value = sliderFromVal(gSettings.days, limits.days);
+document.getElementById("daysText").value = gSettings.days.toString();
 document.getElementById("verticalPositionSlider").value = sliderFromVal(gSettings.vertDisplacement, limits.vertDisplacement);
 document.getElementById("fontSizeSlider").value = sliderFromVal(gSettings.fontSize, limits.fontSize);
 document.getElementById("gifSizeSlider").value = sliderFromVal(gSettings.gifSize, limits.gifSize);
@@ -91,7 +102,7 @@ document.getElementById("gifSpeedSlider").value = sliderFromVal(gSettings.gifSpe
 enableButtons(); // also sets sliders
 
 let dialogs = new Array();
-
+setOutputModeChecked();
 
 document.getElementById("tagRefreshBtn").addEventListener("click", () => {
     tagSingleFile();
@@ -109,10 +120,12 @@ document.getElementById("makeGIFs").addEventListener("click", () => {
     gifBatchFiles();
 });
 document.getElementById("btnHelp").addEventListener("click", () => {
-
         dialogs[0].uxpShowModal();
 });
+document.getElementById("btnHelp2").addEventListener("click", () => {
 
+    dialogs[5].uxpShowModal();
+});
 document.getElementById("merge").addEventListener("change", evt => {
     gSettings.merge = evt.target.checked;
     localStorage.setItem("merge", gSettings.merge.toString());
@@ -128,10 +141,18 @@ document.getElementById("outputMode").addEventListener("change", evt => {
     gSettings.outputMode = parseInt(evt.target.value);
     localStorage.setItem("outputMode", gSettings.outputMode);
     enableButtons();
+    setOutputModeChecked();
     if (gSettings.outputMode < 2)
         tagSingleFile();
 });
-
+document.getElementById("outputMode2").addEventListener("change", evt => {
+    gSettings.outputMode = parseInt(evt.target.value);
+    localStorage.setItem("outputMode", gSettings.outputMode);
+    enableButtons();
+    setOutputModeChecked();
+    if (gSettings.outputMode < 2)
+        tagSingleFile();
+});
 function textToSlider(evt, textID, sliderID, param) {
     let v = sliderFromVal(parseFloat(evt.target.value), limits[param]);
     if (checkValid(v >= 0 && v <= 100, textID)) {
@@ -143,10 +164,12 @@ function textToSlider(evt, textID, sliderID, param) {
 
 function sliderToText(evt, textID, sliderID, param) {
     gSettings[param] = valFromSlider(evt.target.value, limits[param]);
-    document.getElementById(textID).value = gSettings[param].toString();
+    document.getElementById(textID).value = (parseInt(100*gSettings[param])/100).toString();
     localStorage.setItem(param, gSettings[param]);
 };
-
+document.getElementById("daysSlider").addEventListener("change", evt => {
+    sliderToText(evt, "daysText", "daysSlider", "days");
+ });
 document.getElementById("verticalPositionSlider").addEventListener("change", evt => {
     sliderToText(evt, "verPosText", "verticalPositionSlider", "vertDisplacement");
     tagSingleFile();
@@ -164,22 +187,24 @@ document.getElementById("gifSpeedSlider").addEventListener("change", evt => {
     sliderToText(evt, "gifSpeedText", "gifSpeedSlider", "gifSpeed");
 });
 
-document.getElementById("verPosText").addEventListener("input", evt => {
+document.getElementById("verPosText").addEventListener("change", evt => {
     textToSlider(evt, "verPosText", "verticalPositionSlider", "vertDisplacement");
     tagSingleFile();
 });
-document.getElementById("gifSizeText").addEventListener("input", evt => {
+document.getElementById("gifSizeText").addEventListener("change", evt => {
     textToSlider(evt, "gifSizeText", "gifSizeSlider", "gifSize");
 });
 
-document.getElementById("fontSizeText").addEventListener("input", evt => {
+document.getElementById("fontSizeText").addEventListener("change", evt => {
     textToSlider(evt, "fontSizeText", "fontSizeSlider", "fontSize");
     tagSingleFile();
 });
-document.getElementById("gifSpeedText").addEventListener("input", evt => {
+document.getElementById("gifSpeedText").addEventListener("change", evt => {
     textToSlider(evt, "gifSpeedText", "gifSpeedSlider", "gifSpeed");
 });
-
+document.getElementById("daysText").addEventListener("change", evt => {
+    textToSlider(evt, "daysText", "daysSlider", "days");
+});
 document.getElementById("dropMenu").addEventListener("change", evt => {
     filterKeyword = evt.target.value;
     document.getElementById("keywordDropDown").value = filterKeyword;
@@ -205,6 +230,11 @@ document.getElementById("btnStop").addEventListener("click", evt => {
     stopTag = true;
 });
 
+document.getElementById("btnStop2").addEventListener("click", evt => {
+    console.log("stop button click");
+    enableButtons();        // this might cure lockup  when moving panel during facetags
+    stopTag = true;
+});
 /**
  * load persistent data from the localStorage
  */
@@ -217,6 +247,7 @@ function restorePersistentData() {
     gSettings.fontSize = parseFloat(localStorage.getItem("fontSize") || 1.0);
     gSettings.gifSpeed = parseFloat((localStorage.getItem("gifSpeed")) || .5);
     gSettings.gifSize = parseInt(localStorage.getItem("gifSize") || 300);
+    gSettings.days = parseFloat((localStorage.getItem("days")) || 1);
 
     // SolidColors are stored as a hexValue string.
 
@@ -246,7 +277,9 @@ function checkValid(condition, textBoxId) {
 }
 
 function enableButton(str) {
+    console.log(str);
     document.getElementById(str).removeAttribute("disabled");
+
 };
 function disableButton(str) {
     document.getElementById(str).setAttribute("disabled", "true");
@@ -264,11 +297,13 @@ function enableButtons() {
     stopTag = false;
     idList.forEach((btn) => enableButton(btn));
     disableButton("btnStop");
+    disableButton("btnStop2");    
     // window.location.reload();  // this erases all settings in the html!
 }
 
 function disableButtons() {
     enableButton("btnStop");
+    enableButton("btnStop2");    
     idList.forEach((btn) => disableButton(btn));
     stopTag = false;
 }

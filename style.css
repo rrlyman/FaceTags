@@ -1,6 +1,6 @@
 body {
   color: white;
-  padding: 0 8px 0; 
+  padding: 0 8px 0;
 }
 
 li:before {
@@ -27,9 +27,9 @@ li:before {
   width: 3em;
 }
 
-sp-body {
+/* sp-body {
   flex: 1 1 auto;
-}
+} */
 .btn {
   display: flex;
   justify-content: space-between;
@@ -41,26 +41,33 @@ div {
   padding-bottom: 4px;
 }
 
-.sp-tab-page {
-    display: none;
-    flex: 1 1 auto;
-    overflow: scroll;
-    /* padding: 12px 0; */
-    flex-direction: column;
-}
-.sp-tab-page.visible {
-    display: flex;
-}
-.sp-tab-page > * {
-  flex: 0 0 auto;
-}
-sp-textfield {
-  width: 80px;
+p {
+  display: flex;
+  justify-content: space-between;
 }
 
+.sp-tab-page {
+  display: none;
+  flex: 1 1 auto;
+  overflow: scroll;
+  flex-direction: column;
+}
+
+.sp-tab-page.visible {
+  display: flex;
+}
+
+.sp-tab-page>* {
+  flex: 0 0 auto;
+}
+
+/* sp-textfield {
+  width: 30%;
+
+}
 sp-label {
-  width: 100px;
-}
-sp-slider {
-  width: 100%;
-}
+  width:30%;
+} */
+/* sp-slider {
+  width: 20%;
+} */

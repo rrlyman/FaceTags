@@ -8,90 +8,54 @@
 
 <body>
 
-  <sp-radio-group style="padding-bottom: 8px;" id="outputMode">
-    <sp-radio id="rb0" value="0" checked="">Landscape</sp-radio>
-    <sp-radio id="rb1" value="1">Portrait</sp-radio>
-    <sp-radio id="rb2" value="2">GIF</sp-radio>
-  </sp-radio-group>
-  <sp-divider size="l"></sp-divider>
-  <sp-body>
-    <div class="sp-tab-page" id="tags">
- 
+  <div class="sp-tab-page" id="tags">
 
-      <div class="btn">
-        <sp-button id="btnForeground" size="s">Text Color</sp-button>
-        <sp-button id="btnBackground" size="s">Border Color</sp-button>
-      </div>
-
-      <div class="btn">
-        <sp-checkbox id="merge" size="s">Merge Layers</sp-checkbox>
-        <sp-checkbox id="backStroke" size="s">Text Border</sp-checkbox>
-      </div>
-
-      <div>
-        <sp-label size="s" for="verPosText">Vertical Position</sp-label>
-        <sp-textfield size="s" id="verPosText"></sp-textfield>
-        <sp-slider id="verticalPositionSlider"></sp-slider>
-      </div>
-
-      <div>
-        <sp-label size="s" for="fontSizeText">Font Size</sp-label>
-        <sp-textfield size="s" id="fontSizeText"></sp-textfield>
-        <sp-slider id="fontSizeSlider"> </sp-slider>
-      </div>
-
-      <sp-divider size="l"></sp-divider>
-
-      <div>
-        <div class="btn">
-          <sp-button id="tagRefreshBtn" size="s"> Refresh</sp-button>
-          <sp-button id="btnTagFile" size="s"> Files</sp-button>
-          <sp-button id="btnTagFolder" size="s">Folders</sp-button>
-        </div>
-      </div>
-    </div>
-  </sp-body>
-  <!-- ############################################################################ -->
-  <sp-body>
-    <div class="sp-tab-page visible" id="gifs">
-   
-      <div class="btn">
-        <sp-button id="createIndex" size="s"> Select Root Folder</sp-button>
-      </div>
-
-      <sp-divider size="l"></sp-divider>
-      <div>
-
-        <sp-picker id="keywordDropDown" placeholder="Make a selection...">
-          <sp-menu id="dropMenu" slot="options" selectable>
-          </sp-menu>
-        </sp-picker>
-      </div>
-
-      <div>
-        <sp-label size="s" for="gifSizeText">GIF Size</sp-label>
-        <sp-textfield size="s" id="gifSizeText"></sp-textfield>
-        <sp-slider id="gifSizeSlider"></sp-slider>
-      </div>
-
-      <div>
-        <sp-label size="s" for="gifSpeedText">Frame seconds</sp-label>
-        <sp-textfield size="s" id="gifSpeedText"></sp-textfield>
-        <sp-slider id="gifSpeedSlider"> </sp-slider>
-      </div>
-
-      <sp-divider size="l"></sp-divider>
-
-      <div class="btn">
-        <sp-button id="makeGIFs" size="s">Make GIFs</sp-button>
-      </div>
-      
-    </div>
-  </sp-body>
-    <!-- ############################################################################ -->
-  <sp-body>
+    <!-- <div style="padding: 6px;"></div> -->
+    <sp-radio-group style="padding-bottom: 8px;" id="outputMode">
+      <sp-radio id="rb0" value="0" checked="">Landscape</sp-radio>
+      <sp-radio id="rb1" value="1">Portrait</sp-radio>
+      <sp-radio id="rb2" value="2">GIF</sp-radio>
+    </sp-radio-group>
     <sp-divider size="l"></sp-divider>
-    
+
+    <div class="btn">
+      <sp-button id="btnForeground" size="s">Text Color</sp-button>
+      <sp-button id="btnBackground" size="s">Border Color</sp-button>
+    </div>
+
+    <div class="btn">
+      <sp-checkbox id="merge" size="s">Merge Layers</sp-checkbox>
+      <sp-checkbox id="backStroke" size="s">Text Border</sp-checkbox>
+    </div>
+
+
+    <p>
+      <sp-label size="s" for="verPosText">Vertical Position</sp-label>
+      <sp-label size="s" for="fontSizeText">Font Size</sp-label>
+    </p>
+
+    <p>
+      <sp-textfield size="s" id="verPosText"></sp-textfield>
+      <sp-textfield size="s" id="fontSizeText">
+    </p>
+
+    <p>
+      <sp-slider id="verticalPositionSlider"></sp-slider>
+      <sp-slider id="fontSizeSlider"> </sp-slider>
+    </p>
+
+
+    <sp-divider size="l"></sp-divider>
+
+
+    <div class="btn">
+      <sp-button id="tagRefreshBtn" size="s"> Refresh</sp-button>
+      <sp-button id="btnTagFile" size="s"> Files</sp-button>
+      <sp-button id="btnTagFolder" size="s">Folders</sp-button>
+    </div>
+
+    <sp-divider size="l"></sp-divider>
+
     <div>
       <div class="btn">
         <sp-button id="btnStop" disabled size="s">Cancel</sp-button>
@@ -99,9 +63,69 @@
       </div>
     </div>
 
-    <sp-progressbar id="progressBar" max=100 value=0 size="s" style="width: 100%">
-    </sp-progressbar>
-  </sp-body>
+  </div>
+
+  <!-- ############################################################################ -->
+
+  <div class="sp-tab-page visible" id="gifs">
+    <sp-radio-group style="padding-bottom: 8px;" id="outputMode2">
+      <sp-radio id="rb02" value="0" checked="">Landscape</sp-radio>
+      <sp-radio id="rb12" value="1">Portrait</sp-radio>
+      <sp-radio id="rb22" value="2">GIF</sp-radio>
+    </sp-radio-group>
+      <sp-divider size="l"></sp-divider>
+
+      <div class="btn">
+        <sp-button id="createIndex" size="s"> Select Root Folder</sp-button>
+      </div>
+
+      <sp-divider size="l"></sp-divider>
+
+      <div>
+        <sp-picker id="keywordDropDown" placeholder="Make a selection...">
+          <sp-menu id="dropMenu" slot="options" selectable>
+          </sp-menu>
+        </sp-picker>
+      </div>
+
+      <p>
+        <sp-label size="s" for="gifSizeText">GIF Size</sp-label>
+        <sp-label size="s" for="gifSpeedText">Frame Display Seconds</sp-label>
+        <sp-label size="s" for="daysText">Days/Frame Filter</sp-label>
+      </p>
+
+      <p>
+        <sp-textfield size="s" id="gifSizeText"></sp-textfield>
+        <sp-textfield size="s" id="gifSpeedText"></sp-textfield>
+        <sp-textfield size="s" id="daysText"></sp-textfield>
+      </p>
+
+      <p>
+        <sp-slider id="gifSizeSlider"></sp-slider>
+        <sp-slider id="gifSpeedSlider"></sp-slider>
+        <sp-slider id="daysSlider"></sp-slider>
+      </p>
+
+      <sp-divider size="l"></sp-divider>
+
+      <div class="btn">
+        <sp-button id="makeGIFs" size="s">Make GIFs</sp-button>
+      </div>
+
+      <sp-divider size="l"></sp-divider>
+
+      <div>
+        <div class="btn">
+          <sp-button id="btnStop2" disabled size="s">Cancel</sp-button>
+          <sp-button id="btnHelp2" size="s"> Help </sp-button>
+        </div>
+      </div>
+
+      <sp-progressbar id="progressBar" max=100 value=0 size="s" style="width: 100%">
+      </sp-progressbar>
+  
+  </div>
+
 </body>
 
 </html>
