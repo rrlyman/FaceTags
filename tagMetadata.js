@@ -41,7 +41,7 @@ function readPersonsFromMetadata(entry) {
     const ns = "http://www.metadataworkinggroup.com/schemas/regions/";
     const NSArea = "http://ns.adobe.com/xmp/sType/Area#";
     const NSCRS = "http://ns.adobe.com/camera-raw-settings/1.0/";
-
+    const XMPDateTime = require('uxp').xmp.XMPDateTime;
     try {
         // pick up essential fields
         const top = parseFloat(xmpMeta.getProperty(xmpConstants.NS_CAMERA_RAW, "crs:CropTop"));
@@ -50,7 +50,7 @@ function readPersonsFromMetadata(entry) {
         const right = 1 - parseFloat(xmpMeta.getProperty(xmpConstants.NS_CAMERA_RAW, "crs:CropRight"));
         const appliedToHeight = parseFloat(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:h"));
         const appliedToWidth = parseFloat(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:w"));
-        let dateTaken = xmpMeta.getProperty(xmpConstants.NS_XMP, "xmp:CreateDate");
+        const dateTaken = xmpMeta.getProperty(xmpConstants.NS_XMP, "xmp:CreateDate");
         const dateModified = xmpMeta.getProperty(xmpConstants.NS_XMP, "xmp:ModifyDate");
 
 
@@ -107,7 +107,7 @@ function readPersonsFromMetadata(entry) {
 
                 // for each person, there is a list of keywords that apply to them
 
-
+                let javascriptDate = new XMPDateTime(dateTaken.toString()).getDate();
                 const person = {
                     "name": personName.toString(),
                     "x": x,         // x pixel coordinate in the original uncropped photo
@@ -115,7 +115,7 @@ function readPersonsFromMetadata(entry) {
                     "w": w,         // rectangle number of pixels wide
                     "h": h,         // rectangle number of pixels high
                     "entry": entry, // File pointer for opening in photoshop
-                    "dateTaken": dateTaken.toString()       
+                    "dateTaken": javascriptDate       
                 };
 
                 persons.push(person);
