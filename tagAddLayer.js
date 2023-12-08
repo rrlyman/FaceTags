@@ -54,28 +54,6 @@ async function addLayer_actn(gSettings, person, bestRect) {
 };
 
 
-/**
- * a debugging aid to list a dictionary contents. 
- * @param {*} str string to be prepended to the output
- * @param {*} pEntry  dictionary containing items to be added to str
- * @returns string containing str and pEntry items
- */
-
-function displayDictionary(str, pEntry) {
-    str += "{ ";
-    // Best for accessing both keys and their values
-    for (const [key, value] of Object.entries(pEntry)) {
-        if (typeof (value) == 'object')
-            str += displayDictionary(key, value) + ", ";
-        else if (typeof (value) == "number")
-            str += key + ": " + value.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ', ';
-        else
-            str += key + ": " + value.toString() + ", ";
-    }
-    str += "}";
-    //console.log(str);
-    return str;
-};
 
 
 /** 
@@ -235,5 +213,5 @@ function calculatePoints(gSettings, bestRect) {
 };
 
 module.exports = {
-    analyzeRectangles, addLayer, displayDictionary
+    analyzeRectangles, addLayer
 };

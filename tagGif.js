@@ -4,15 +4,14 @@
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
 const { getFaceTagsTreeName, skipThisEntry } = require("./tagFace.js");
 
-
-
-
 /**
  * personsDict is a one to many dictionary, where the key is the person's name, 
  * Then there is one entry for each days of the person rectangles that were found.
- * e.g {person.name: {days: person}}   ( definition of the person's rectangle such as 1957: personRick, 1958: personBob etc
+ * e.g {person.name: {periods: person}}   ( definition of the person's rectangle such as -13: personRick, -12: personBob etc
+ * periods is the number of gSettings.days periods since 1970, fpr the year 1957 would be -13
   */
 let personsDict = {};
+
 
 /**  
  * subjectDict is a one to many dictionary, where the key is a subject, such as "reunion" and the many is an array of the names of persons.
@@ -92,14 +91,15 @@ async function createIndex() {
          menu.appendChild(item);
       }
 
-      const item = document.createElement("sp-menu-divider");
-      menu.appendChild(item);
+      menu.appendChild(document.createElement("sp-menu-divider"));
+
 
       // now add anyone to the dropdown who has a person rectangle
-      let persons = Object.keys(personsDict).sort();
-      for (let iPerson in persons) {
+
+      let personNames = Object.keys(personsDict).sort();
+      for (let i = 0; i < personNames.length; i++) {
          const item = document.createElement("sp-menu-item");
-         item.textContent = persons[iPerson];
+         item.textContent = personNames[i];
          menu.appendChild(item);
       }
 
@@ -111,25 +111,54 @@ async function createIndex() {
  * If the selected filterKeyword is in the subjectDict, the use all of the names for filterKeyword in the subjectDict.
  * If the selected filtereyword is in the personsDict, GIF only that person
  * 
- * @param {*} newDict  a filtered version of the personsDict
+ * @param {*} newDict  a filtered version of the personsDict, unsorted!
  */
 function filtered() {
-   if (filterKeyword == "")
-      return personsDict;
    let newDict = {};
+   // create a dictionary of person names each of which
+
+   // has an value of another dictionary with an entry for each time period
+   // the value of which is the filename, person name, biggest area face rectange for the period, etc
+
+   const msPerPeriod = 1000 * 60 * 60 * 24 * gSettings.days;
+
+   // filters the array of times by only including one time in a given time perion in the newDict
+   for (personKey in personsDict) {
+      personsDict[personKey].forEach((person) => {
+
+         if (!(person.name in newDict))
+            newDict[person.name] = {};
+
+         if (msPerPeriod == 0) {
+            newDict[person.name][Math.round(person.dateTaken.getTime())] = person;  // if days == 0, include all gifs for that person
+         } else {
+            const period = Math.round(person.dateTaken.getTime() / msPerPeriod);
+            if (!(period in newDict[person.name]) ||
+               !(newDict[person.name][period].w * newDict[person.name][period].h < person.w * person.h)) {
+               newDict[person.name][period] = person;
+            }
+         }
+      })
+   };
 
 
+   if (filterKeyword == "")
+      return newDict;  // unsorted ??
+
+   let newDict2 = {}
+
+   // sticks anyone in the new dictionary that had the picked subject
    if (subjectDict[filterKeyword] != undefined) {
       subjectDict[filterKeyword].forEach((pName) => {
-         if (personsDict[pName] != undefined)
-            newDict[pName] = personsDict[pName];
+         if (newDict[pName] != undefined)
+            newDict2[pName] = newDict[pName];
       });
-      return newDict;
+      return newDict2;
    }
-
+   // sticks anyone in the new dictionary that matches the picked name
    if (personsDict[filterKeyword] != undefined)
-      newDict[filterKeyword] = personsDict[filterKeyword];
-   return newDict;
+      newDict2[filterKeyword] = newDict[filterKeyword];
+   return newDict2;
 };
 
 /** Run the Gifmaker. If the folder tree has not been scanned, then create and index
@@ -164,35 +193,35 @@ async function gifBatchFiles() {
       if (stopTag)
          break;
       const dpi = 72;
-      const inflate = 1;
+    
+      
       let targetDoc = null;
 
-      // For each person, there was an entry, one per year.
-      // Go through the years and make a frame in the GIF for each year
-
+      // For each person, there was an entry, one per period.
+      // Go through the periods and make a frame in the GIF for each year
 
       // dictionaries can be unordered so make an ordered array
 
-      let msKeys = Object.keys(filteredDict[personKey]).sort((function (a, b) {
-         return Number(a) - Number(b);
-      }));
-      let lastDay = -1.0 * 10 ** 27;
-      for (let i = 0; i < msKeys.length; i++) {
-         let msKey = msKeys[i];
-         let thisDay = msKey / (1000 * 60 * 60);
-         if ((thisDay - gSettings.days) < lastDay)
-            continue;
-         lastDay = thisDay;
+      let msKeys = Object.keys(filteredDict[personKey]).sort(function (a, b) { return a - b; }
+      );
+
+      for (let i = 0; i < msKeys.length && !stopTag; i++) {
+
          // make the source image the same size as the gif
-         let person = personsDict[personKey][msKey];
+         let person = filteredDict[personKey][msKeys[i]];
          let sourceDoc = await executeAsModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
 
-         const left = person.x - inflate * person.w;
-         const right = person.x + inflate * person.w;
-         const top = person.y - inflate * person.h;
-         const bottom = person.y + inflate * person.h;
-         let bounds = { left: Math.max(0, left), top: Math.max(0, top), right: Math.min(sourceDoc.width, right), bottom: Math.min(sourceDoc.height, bottom) };
+         let distanceToEdge = Math.min(person.x, sourceDoc.width - person.x, person.y, sourceDoc.height - person.y);
+         if (!gSettings.fullPhoto){
+            distanceToEdge = Math.min(distanceToEdge, person.w, person.x - person.w, person.h, person.y - person.h);
+         }
 
+         const left = person.x - distanceToEdge;
+         const right = person.x + distanceToEdge;
+         const top = person.y - distanceToEdge;
+         const bottom = person.y + distanceToEdge;
+       //  let bounds = { left: Math.max(0, left), top: Math.max(0, top), right: Math.min(sourceDoc.width, right), bottom: Math.min(sourceDoc.height, bottom) };
+         let bounds = {left: left, right: right, top: top, bottom: bottom};
          await executeAsModal(() => sourceDoc.crop(bounds), { "commandName": "Crop File" });
          await executeAsModal(() => sourceDoc.resizeImage(gSettings.gifSize, gSettings.gifSize, dpi), { "commandName": "Resize batched File" });
          if (targetDoc == null) {
@@ -255,13 +284,12 @@ async function recurseIndex(originalPhotosFolder) {
       if (skipThisEntry(entry))
          continue;
 
-      // recurse folders
-
       if (entry.isFolder) {
          await recurseIndex(entry);
       } else {
          ////////////////////     PAYLOAD START     /////////////////////     
          let [persons, subjects] = readPersonsFromMetadata(entry);  // persons in the file, with the subject keywords for each person
+
 
          // a subject in subjectDict has an entry for each person that had at least one instance of that subject
 
@@ -271,21 +299,18 @@ async function recurseIndex(originalPhotosFolder) {
                   subjectDict[subject] = Array(0);
                subjectDict[subject].push(person.name);
             });
+            if (personsDict[person.name] == undefined) {
+               personsDict[person.name] = Array(0);
+            }
+            personsDict[person.name].push(person);
 
-            const millisTaken = person.dateTaken.getTime();
-
-            if (!(person.name in personsDict))
-               personsDict[person.name] = {};
-
-            personsDict[person.name][millisTaken] = person;
-
-         })
+         }
+         )
       }
       ////////////////////     PAYLOAD END     /////////////////////                  
 
    }
 };
-
 
 
 

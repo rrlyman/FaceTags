@@ -3,7 +3,6 @@
 
 const { makeHelpDialogs } = require("./tagHelp.js");
 const { setForeground, setBackground } = require("./tagBatchPlay.js");
-const { displayDictionary } = require("./tagAddLayer.js");
 const { tagSingleFile, tagMultiFiles, tagBatchFiles } = require("./tagFace.js");
 const { gifBatchFiles, createIndex } = require("./tagGif.js");
 
@@ -30,7 +29,8 @@ const imaging = require("photoshop").imaging;
 * foreColor: SolidColor,
 * backColor SolidColor,
 * charsPerFace : number,
-* days: number
+* days: number,
+* fullPhoto: number
 * }}
 */
 let gSettings = {};
@@ -39,8 +39,10 @@ const gifSuffix = "-gifs";
 const labeledSuffix = "-labeled";
 let filterKeyword = "";
 let originalPhotosFolder = null;
-const idList = ["rb0", "rb1", "rb2", "rb02", "rb12", "rb22",  "btnHelp", "btnHelp2","btnTagFile", "btnTagFolder", "tagRefreshBtn", "verticalPositionSlider", "fontSizeSlider", "btnForeground",
-    "btnBackground", "keywordDropDown", "dropMenu", "gifSpeedText", "gifSizeText", "createIndex", "makeGIFs", "gifSizeSlider", "gifSpeedSlider","daysSlider"];
+const idList = ["rb0", "rb1", "rb2", "rb02", "rb12", "rb22", "btnHelp", "btnHelp2", "btnTagFile",
+    "btnTagFolder", "tagRefreshBtn", "verticalPositionSlider", "fontSizeSlider", "btnForeground",
+    "btnBackground", "keywordDropDown", "dropMenu", "gifSpeedText", "gifSizeText", "createIndex",
+    "makeGIFs", "gifSizeSlider", "gifSpeedSlider", "daysSlider", "daysText", "fullPhoto"];
 
 
 const limits = {
@@ -70,22 +72,23 @@ function valFromSlider(slider, valRange) {
     return (slider / 100) * (valRange.maxR - valRange.minR) + valRange.minR;
 }
 restorePersistentData();
-console.log(displayDictionary("restorePersistent ", gSettings));
 gSettings.charsPerFace = 10;  // not currently adjustable
 
 document.getElementById("merge").checked = gSettings.merge ? 1 : 0;
 document.getElementById("backStroke").checked = gSettings.backStroke ? 1 : 0;
+document.getElementById("fullPhoto").checked = gSettings.fullPhoto ? 1: 0;
 document.getElementById("outputMode").value = gSettings.outputMode;
 document.getElementById("outputMode2").value = gSettings.outputMode;
 
 function setOutputModeChecked() {
-document.getElementById("rb0").checked = gSettings.outputMode == 0 ? 1 : 0;
-document.getElementById("rb1").checked = gSettings.outputMode == 1 ? 1 : 0;
-document.getElementById("rb2").checked = gSettings.outputMode == 2 ? 1 : 0;
-document.getElementById("rb02").checked = gSettings.outputMode == 0 ? 1 : 0;
-document.getElementById("rb12").checked = gSettings.outputMode == 1 ? 1 : 0;
-document.getElementById("rb22").checked = gSettings.outputMode == 2 ? 1 : 0;
+    document.getElementById("rb0").checked = gSettings.outputMode == 0 ? 1 : 0;
+    document.getElementById("rb1").checked = gSettings.outputMode == 1 ? 1 : 0;
+    document.getElementById("rb2").checked = gSettings.outputMode == 2 ? 1 : 0;
+    document.getElementById("rb02").checked = gSettings.outputMode == 0 ? 1 : 0;
+    document.getElementById("rb12").checked = gSettings.outputMode == 1 ? 1 : 0;
+    document.getElementById("rb22").checked = gSettings.outputMode == 2 ? 1 : 0;
 };
+
 
 document.getElementById("keywordDropDown").value = filterKeyword;
 
@@ -120,12 +123,13 @@ document.getElementById("makeGIFs").addEventListener("click", () => {
     gifBatchFiles();
 });
 document.getElementById("btnHelp").addEventListener("click", () => {
-        dialogs[0].uxpShowModal();
+    dialogs[0].uxpShowModal();
 });
 document.getElementById("btnHelp2").addEventListener("click", () => {
-
     dialogs[5].uxpShowModal();
 });
+
+
 document.getElementById("merge").addEventListener("change", evt => {
     gSettings.merge = evt.target.checked;
     localStorage.setItem("merge", gSettings.merge.toString());
@@ -136,7 +140,10 @@ document.getElementById("backStroke").addEventListener("change", evt => {
     localStorage.setItem("backStroke", gSettings.backStroke.toString());
     tagSingleFile();;
 });
-
+document.getElementById("fullPhoto").addEventListener("change", evt => {
+    gSettings.fullPhoto = evt.target.checked;
+    localStorage.setItem("fullPhoto", gSettings.fullPhoto.toString());
+});
 document.getElementById("outputMode").addEventListener("change", evt => {
     gSettings.outputMode = parseInt(evt.target.value);
     localStorage.setItem("outputMode", gSettings.outputMode);
@@ -164,12 +171,12 @@ function textToSlider(evt, textID, sliderID, param) {
 
 function sliderToText(evt, textID, sliderID, param) {
     gSettings[param] = valFromSlider(evt.target.value, limits[param]);
-    document.getElementById(textID).value = (parseInt(100*gSettings[param])/100).toString();
+    document.getElementById(textID).value = (parseInt(100 * gSettings[param]) / 100).toString();
     localStorage.setItem(param, gSettings[param]);
 };
 document.getElementById("daysSlider").addEventListener("change", evt => {
     sliderToText(evt, "daysText", "daysSlider", "days");
- });
+});
 document.getElementById("verticalPositionSlider").addEventListener("change", evt => {
     sliderToText(evt, "verPosText", "verticalPositionSlider", "vertDisplacement");
     tagSingleFile();
@@ -212,9 +219,9 @@ document.getElementById("dropMenu").addEventListener("change", evt => {
 
 document.getElementById("btnForeground").addEventListener("click", evt => {
     setForeground();
-    console.log(displayDictionary('gSettings foreColorX', gSettings));
+
     localStorage.setItem("foreColor", gSettings.foreColor.rgb.hexValue);
-    console.log(displayDictionary('gSettings foreColor', gSettings));
+
     tagSingleFile();;
 });
 
@@ -243,11 +250,13 @@ function restorePersistentData() {
     gSettings.vertDisplacement = parseFloat(localStorage.getItem("vertDisplacement") || .8);
     gSettings.merge = (localStorage.getItem("merge") || "true") == "true";
     gSettings.backStroke = (localStorage.getItem("backStroke") || "true") == "true";
+    gSettings.fullPhoto = (localStorage.getItem("fullPhoto") || "true") == "true";  
     gSettings.outputMode = parseInt((localStorage.getItem("outputMode")) || 0);
     gSettings.fontSize = parseFloat(localStorage.getItem("fontSize") || 1.0);
     gSettings.gifSpeed = parseFloat((localStorage.getItem("gifSpeed")) || .5);
     gSettings.gifSize = parseInt(localStorage.getItem("gifSize") || 300);
     gSettings.days = parseFloat((localStorage.getItem("days")) || 1);
+  
 
     // SolidColors are stored as a hexValue string.
 
@@ -255,8 +264,6 @@ function restorePersistentData() {
     gSettings.foreColor.rgb.hexValue = localStorage.getItem("foreColor") || "0xffffff";
     gSettings.backColor = new SolidColor();
     gSettings.backColor.rgb.hexValue = localStorage.getItem("backColor") || "0x0000ff";
-    console.log(displayDictionary('gSettings', gSettings));
-
 }
 
 /**
@@ -277,7 +284,6 @@ function checkValid(condition, textBoxId) {
 }
 
 function enableButton(str) {
-    console.log(str);
     document.getElementById(str).removeAttribute("disabled");
 
 };
@@ -285,29 +291,28 @@ function disableButton(str) {
     document.getElementById(str).setAttribute("disabled", "true");
 };
 
-function enableButtons() { 
+function enableButtons() {
     if (gSettings.outputMode < 2) {
-        document.getElementById("tags").className="sp-tab-page visible"    ;      
-        document.getElementById("gifs").className="sp-tab-page "    ;   
-      } else {
-        document.getElementById("gifs").className="sp-tab-page visible"    ;     
-        document.getElementById("tags").className="sp-tab-page "    ;  
+        document.getElementById("tags").className = "sp-tab-page visible";
+        document.getElementById("gifs").className = "sp-tab-page ";
+    } else {
+        document.getElementById("gifs").className = "sp-tab-page visible";
+        document.getElementById("tags").className = "sp-tab-page ";
     }
-    
+
     stopTag = false;
     idList.forEach((btn) => enableButton(btn));
     disableButton("btnStop");
-    disableButton("btnStop2");    
+    disableButton("btnStop2");
     // window.location.reload();  // this erases all settings in the html!
 }
 
 function disableButtons() {
     enableButton("btnStop");
-    enableButton("btnStop2");    
+    enableButton("btnStop2");
     idList.forEach((btn) => disableButton(btn));
     stopTag = false;
 }
-//makeGifHelpDialogs();
 makeHelpDialogs();
 
 

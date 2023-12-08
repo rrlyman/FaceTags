@@ -2,7 +2,7 @@
 // copywrite 2023 Richard R. Lyman
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
 const { setOutsideStroke, makeAPortrait, trim, selectMoveTool } = require("./tagBatchPlay.js");
-const { analyzeRectangles, addLayer, displayDictionary } = require("./tagAddLayer.js");
+const { analyzeRectangles, addLayer } = require("./tagAddLayer.js");
 
 /**
  * If an entry contains tagged or giffed information, then skip it

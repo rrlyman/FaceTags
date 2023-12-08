@@ -8,7 +8,8 @@ let lastDate = "2021-09-15T00:22:20";
  * Picks up the metadaa for the photo, parses it to find the People in Metadata Working Group format
  *  
  * @param {*} entry // File entry of file to extract metadata. If null, use the Photoshop metadata instead of xmpFile
- * @returns [{personName, x, y, w, h}] Returns a 0 length array if no metadata is found
+ * @returns [{personName, x, y, w, h},subjects] Returns a 0 length array if no metadata is found
+ *      subjects is cleaned of any names that are also persons
  */
 
 function readPersonsFromMetadata(entry) {
