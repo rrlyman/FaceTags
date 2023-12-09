@@ -30,7 +30,7 @@ const imaging = require("photoshop").imaging;
 * backColor SolidColor,
 * charsPerFace : number,
 * days: number,
-* bigSquare: number
+* fullPhoto: number
 * }}
 */
 let gSettings = {};
@@ -50,7 +50,7 @@ elements.forEach((element) => {
 });
 console.log("idList " + JSON.stringify(idList));
 const limits = {
-    gifSize: { minR: 10, maxR: 2160 },
+    gifSize: { minR: 10, maxR: 5000 },
     fontSize: { minR: .1, maxR: 3 },
     gifSpeed: { minR: 0, maxR: 20 },
     vertDisplacement: { minR: -3, maxR: 3 },
@@ -80,7 +80,7 @@ gSettings.charsPerFace = 10;  // not currently adjustable
 
 document.getElementById("merge").checked = gSettings.merge ? 1 : 0;
 document.getElementById("backStroke").checked = gSettings.backStroke ? 1 : 0;
-document.getElementById("bigSquare").checked = gSettings.bigSquare ? 1 : 0;
+document.getElementById("fullPhoto").checked = gSettings.fullPhoto ? 1 : 0;
 document.getElementById("outputMode").value = gSettings.outputMode;
 document.getElementById("outputMode2").value = gSettings.outputMode;
 
@@ -144,9 +144,9 @@ document.getElementById("backStroke").addEventListener("change", evt => {
     localStorage.setItem("backStroke", gSettings.backStroke.toString());
     tagSingleFile();;
 });
-document.getElementById("bigSquare").addEventListener("change", evt => {
-    gSettings.bigSquare = evt.target.checked;
-    localStorage.setItem("bigSquare", gSettings.bigSquare.toString());
+document.getElementById("fullPhoto").addEventListener("change", evt => {
+    gSettings.fullPhoto = evt.target.checked;
+    localStorage.setItem("fullPhoto", gSettings.fullPhoto.toString());
 });
 document.getElementById("outputMode").addEventListener("change", evt => {
     gSettings.outputMode = parseInt(evt.target.value);
@@ -254,7 +254,7 @@ function restorePersistentData() {
     gSettings.vertDisplacement = parseFloat(localStorage.getItem("vertDisplacement") || -.9);
     gSettings.merge = (localStorage.getItem("merge") || "true") == "true";
     gSettings.backStroke = (localStorage.getItem("backStroke") || "true") == "true";
-    gSettings.bigSquare = (localStorage.getItem("bigSquare") || "false") == "true";
+    gSettings.fullPhoto = (localStorage.getItem("fullPhoto") || "false") == "true";
     gSettings.outputMode = parseInt((localStorage.getItem("outputMode")) || 0);
     gSettings.fontSize = parseFloat(localStorage.getItem("fontSize") || 1.0);
     gSettings.gifSpeed = parseFloat((localStorage.getItem("gifSpeed")) || .5);

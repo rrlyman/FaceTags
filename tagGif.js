@@ -2,7 +2,7 @@
 // copywrite 2023 Richard R. Lyman
 
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
-const { getFaceTagsTreeName, skipThisEntry, countFiles, progressBar,  resetHistoryState } = require("./tagFace.js");
+const { getFaceTagsTreeName, skipThisEntry, countFiles, progressBar, resetHistoryState } = require("./tagFace.js");
 
 /**
  * personsDict is a one to many dictionary, where the key is the person's name, 
@@ -119,7 +119,7 @@ function filtered() {
 
    const msPerPeriod = 1000 * 60 * 60 * 24 * gSettings.days;
    disableButtons("Applying Options");
-   
+
    // filters the array of times by only including one time in a given time perion in the newDict
    for (personKey in personsDict) {
       personsDict[personKey].forEach((person) => {
@@ -205,29 +205,33 @@ async function gifBatchFiles() {
          // make the source image the same size as the gif
          let person = filteredDict[personKey][msKeys[i]];
          let sourceDoc = await executeAsModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
-         await executeAsModal(() => sourceDoc.flatten(), { "commandName": "Flattening" });   
-         /* With bigSquare enabled, create the biggest square that can be contained in the document positioned so distance from the center point of the person
+         await executeAsModal(() => sourceDoc.flatten(), { "commandName": "Flattening" });
+         /* With fullPhoto enabled, create the biggest square that can be contained in the document positioned so distance from the center point of the person
          to the centerpoint of the square is minimized.
          
          With the full mode off, create a square, twice as large as the person's rectangle,  that can be contained in the document 
          positioned so distance from the center point of the person
          to the centerpoint of the square is minimized.
          */
-         let s;
-         if (gSettings.bigSquare)
-            s = Math.min(sourceDoc.width, sourceDoc.height);
-         else
-            s = 2 * person.w;
-         const centerX = s / 2;  // the center of the new square
-         const centerY = s / 2;
-         const playRight = sourceDoc.width - s;
-         const playDown = sourceDoc.height - s;
-         const moveRight = Math.min(playRight, Math.max(0, person.x-centerX));
-         const moveDown = Math.min(playDown, Math.max(0, person.y-centerY));
-         let bounds = { left: moveRight, top: moveDown, bottom: moveDown + s, right: moveRight + s };
 
-         await executeAsModal(() => sourceDoc.crop(bounds), { "commandName": "Crop File" });
-         await executeAsModal(() => sourceDoc.resizeImage(gSettings.gifSize, gSettings.gifSize, dpi), { "commandName": "Resize batched File" });
+         if (gSettings.fullPhoto) {
+            let biggestDimension = Math.max(sourceDoc.width, sourceDoc.height);
+            await executeAsModal(() => sourceDoc.resizeImage(parseInt(gSettings.gifSize * sourceDoc.width / biggestDimension),
+               parseInt(gSettings.gifSize * sourceDoc.height / biggestDimension), dpi), { "commandName": "Resize batched File" });
+            await executeAsModal(() => sourceDoc.resizeCanvas(gSettings.gifSize, gSettings.gifSize), { "commandName": "Resize batched File" });
+
+         } else {
+            let s = 2 * person.w;
+            const centerX = s / 2;  // the center of the new square
+            const centerY = s / 2;
+            const playRight = sourceDoc.width - s;
+            const playDown = sourceDoc.height - s;
+            const moveRight = Math.min(playRight, Math.max(0, person.x - centerX));
+            const moveDown = Math.min(playDown, Math.max(0, person.y - centerY));
+            let bounds = { left: moveRight, top: moveDown, bottom: moveDown + s, right: moveRight + s };
+            await executeAsModal(() => sourceDoc.crop(bounds), { "commandName": "Crop File" });
+            await executeAsModal(() => sourceDoc.resizeImage(gSettings.gifSize, gSettings.gifSize, dpi), { "commandName": "Resize batched File" });
+         }
          if (targetDoc == null) {
             targetDoc = sourceDoc;  // the first clipped sourceDoc is the target 
          } else {
