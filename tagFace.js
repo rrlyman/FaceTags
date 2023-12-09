@@ -20,8 +20,8 @@ function skipThisEntry(entry) {
     let legalType = true;
     if (!entry.isFolder) {
         legalType = false;
-        let fTypes = ['.bmp', /*'gif', */'.jpg', '.jpeg', '.png', '.psb', '.psd', '.tif', '.tiff'];
-        fTypes.forEach((fType) => {
+        let goodTypes = ['.bmp', /*'gif', */'.jpg', '.jpeg', '.png', '.psb', '.psd', '.tif', '.tiff'];
+        goodTypes.forEach((fType) => {
             let eName = entry.name.toLowerCase();
             if (eName.endsWith(fType)) {
                 if (eName.replace(fType, "").length > 0)
@@ -30,10 +30,28 @@ function skipThisEntry(entry) {
         });
     }
     return (!legalType) || illegalName;
-
 };
 
-/**
+/**for the progress bar, get an overall file ocount.
+ * 
+ * @param {*} folder The root file folder
+ * @returns the number of file entries under the root
+ */
+async function countFiles(folder) {
+    disableButtons("Counting Files");
+    let ents = await folder.getEntries();
+    let iCount = 0;
+    for (let i = 0; i < ents.length; i++) {
+        if (skipThisEntry(ents[i]))
+            continue;
+        iCount++;
+        if (ents[i].isFolder)
+            iCount += await countFiles(ents[i]);
+    }
+    return iCount;
+}
+
+/** face tag a file
  * 
  * @param {*} entry a UXP File entry for the disk file to be opened and tagged
  * 
@@ -92,7 +110,7 @@ let dontAsk = false; // puts up only one alert for missing metadata when loading
 async function tagSingleFile() {
 
     let aDoc = app.activeDocument;
-
+    disableButtons("Refreshing Labels");
     if (app.documents.length == 0) {
         alert("No file is loaded. In PhotoShop Classic, load a file before running the script!");
     } else {
@@ -100,6 +118,7 @@ async function tagSingleFile() {
         dontAsk = false;
         await faceTagTheImage(persons);
     }
+    enableButtons();
 };
 
 /**
@@ -108,7 +127,7 @@ async function tagSingleFile() {
  * the photos remain loaded in Photoshop
  */
 async function tagMultiFiles() {
-    disableButtons();
+    disableButtons("Tagging Files");
     // Put up a dialog box, and get a list of file(s) to face tag.
     const files = await fs.getFileForOpening({ allowMultiple: true });
 
@@ -121,6 +140,11 @@ async function tagMultiFiles() {
     enableButtons();
 };
 
+function progressBar(val) {
+    document.getElementById("progressBar").value = val;
+    document.getElementById("progressBar2").value = val;
+
+}
 /**
  * Opens up a folder dialog box to select top folder to process
  * Makes a new folder called originalPhotosFolder-labelled_n and builds a tree under it that duplicates
@@ -128,41 +152,51 @@ async function tagMultiFiles() {
  * 
  * Annotates each file with the face tag labels for each person found in the file metadata 
  * 
- * @param {*} originalPhotosFolder       Folder Entry that is navigating the folder tree with the original photos. null if is the initial call
- * @param {*} labeledDirectoryFolder     Folder Entry that is navigating the folder tree containing the results of the faceTagging.
- * @returns 
+  * @returns 
  */
-async function tagBatchFiles(originalPhotosFolder, labeledDirectoryFolder) {
-
-    let topRecursionLevel = false;
-    let newFolder = null;
-
-    dontAsk = true;  // omit no perssons found message
-
-    // make the newFolder in the FaceTags Tree to hold tagged version of the files in the originalPhotosFolder
-
+async function tagBatchFiles() {
     if (originalPhotosFolder == null) {  // null is the initial call
-        topRecursionLevel = true;
         originalPhotosFolder = await fs.getFolder();
         if (originalPhotosFolder == null) {  // null if user cancels dialog              
             return;
         }
-        disableButtons();  // only enable the Cancel button                
-        // create the top level labeledDirectoryFolder
-        const ents = await originalPhotosFolder.getEntries();
-        newFolder = await originalPhotosFolder.createFolder(getFaceTagsTreeName(originalPhotosFolder.name, ents, labeledSuffix));
-
-
-    } else {
-
-        // traverse the labeledDirectory folder with an folder names similar to the original folder tree
-        newFolder = await labeledDirectoryFolder.createFolder(originalPhotosFolder.name + labeledSuffix);
     }
+    nFiles = await countFiles(originalPhotosFolder);
+    iFiles = 0;
+    dontAsk = true;  // omit no perssons found message
+    disableButtons("Processing Folders");  // only enable the Cancel button  
+    progressBar(0);
+    // create the top level labeledDirectoryFolder
+    const ents = await originalPhotosFolder.getEntries();
+    newFolder = await originalPhotosFolder.createFolder(getFaceTagsTreeName(originalPhotosFolder.name, ents, labeledSuffix));
+    recurseBatchFiles(originalPhotosFolder, newFolder);
+    progressBar(100);
+    enableButtons();
+};
+/**
+ * Opens up a folder dialog box to select top folder to process
+ * Makes a new folder called photosFolder-labelled_n and builds a tree under it that duplicates
+ * the source tree. Populates it with tagged photos of the originals.
+ * 
+ * Annotates each file with the face tag labels for each person found in the file metadata 
+ * 
+ * @param {*} photosFolder       Folder Entry that is navigating the folder tree with the original photos. null if is the initial call
+ * @param {*} labeledDirectoryFolder     Folder Entry that is navigating the folder tree containing the results of the faceTagging.
+ * @returns 
+ */
+async function recurseBatchFiles(photosFolder, labeledDirectoryFolder) {
 
-    // process all the files and folders in the originalPhotosFolder
+    let newFolder = null;
+
+
+    // traverse the labeledDirectory folder with an folder names similar to the original folder tree
+    newFolder = await labeledDirectoryFolder.createFolder(photosFolder.name + labeledSuffix);
+
+    // process all the files and folders in the photosFolder
     if (newFolder != null) {
-        const entries = await originalPhotosFolder.getEntries();
+        const entries = await photosFolder.getEntries();
         for (let i = 0; (i < entries.length) && (!stopTag); i++) {
+            progressBar((100 * ++iFiles / nFiles).toString());
             const entry = entries[i];;
 
             if (skipThisEntry(entry))
@@ -171,7 +205,7 @@ async function tagBatchFiles(originalPhotosFolder, labeledDirectoryFolder) {
             // recurse folders
 
             if (entry.isFolder) {
-                await tagBatchFiles(entry, newFolder);
+                await recurseBatchFiles(entry, newFolder);
             } else {
 
                 ////////////////////     PAYLOAD START     /////////////////////      
@@ -201,10 +235,7 @@ async function tagBatchFiles(originalPhotosFolder, labeledDirectoryFolder) {
         }
     }
 
-    if (topRecursionLevel) {
-        enableButtons();
-        console.log("topRecursionLevel");
-    }
+
 };
 
 /**
@@ -213,9 +244,6 @@ async function tagBatchFiles(originalPhotosFolder, labeledDirectoryFolder) {
  * @returns 
  */
 async function faceTagTheImage(persons) {
-
-
-
     let aDoc = app.activeDocument;
 
     if ((persons != undefined) && (persons.length <= 0)) {
@@ -231,6 +259,7 @@ async function faceTagTheImage(persons) {
     persons.sort((a, b) => b.name.toUpperCase().localeCompare(a.name.toUpperCase()));
 
     // start with clean document  
+
     await resetHistoryState(aDoc);
     await selectMoveTool();
     if (aDoc.layers.length > 1)
@@ -267,7 +296,6 @@ async function faceTagTheImage(persons) {
             await makeAPortrait(aDoc);
 
     }
-
 };
 
 /**
@@ -278,9 +306,7 @@ async function resetHistoryState(aDoc) {
 
     await executeAsModal(() => {
         if (aDoc.historyStates.length > 0) {
-            //console.log("resetting history state");
-            aDoc.activeHistoryState = aDoc.historyStates[0];
-            //console.log("resetting history state2");        
+            aDoc.activeHistoryState = aDoc.historyStates[0];  
         }
     }
         , { "commandName": "Resetting History" });
@@ -289,5 +315,5 @@ async function resetHistoryState(aDoc) {
 
 
 module.exports = {
-    tagSingleFile, tagMultiFiles, tagBatchFiles, getFaceTagsTreeName, skipThisEntry
+    tagSingleFile, tagMultiFiles, tagBatchFiles, getFaceTagsTreeName, skipThisEntry, countFiles, progressBar, resetHistoryState
 };

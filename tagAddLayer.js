@@ -84,7 +84,7 @@ function analyzeRectangles(persons, gVertDisplacement) {
         let y = persons[i].y ;
         let w = persons[i].w;
         let h = persons[i].h;
-        y = (y + gVertDisplacement * h);  	            // lower the rectangle below the chin by changing x,y to be the center of the top of the bounding box         
+        y = (y - gVertDisplacement * h);  	            // lower the rectangle below the chin by changing x,y to be the center of the top of the bounding box         
         const widenAmt = 4;                             // inflate the rectangle, but clip to the width and height
         w = Math.min(aDoc.width, widenAmt * w);		       // (x,y) is the center of the rectangle so they do not move during inflation or deflation.    
         h = Math.min(aDoc.height, widenAmt * h);

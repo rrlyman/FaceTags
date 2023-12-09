@@ -30,7 +30,7 @@ const imaging = require("photoshop").imaging;
 * backColor SolidColor,
 * charsPerFace : number,
 * days: number,
-* fullPhoto: number
+* bigSquare: number
 * }}
 */
 let gSettings = {};
@@ -39,17 +39,21 @@ const gifSuffix = "-gifs";
 const labeledSuffix = "-labeled";
 let filterKeyword = "";
 let originalPhotosFolder = null;
-const idList = ["rb0", "rb1", "rb2", "rb02", "rb12", "rb22", "btnHelp", "btnHelp2", "btnTagFile",
-    "btnTagFolder", "tagRefreshBtn", "verticalPositionSlider", "fontSizeSlider", "btnForeground",
-    "btnBackground", "keywordDropDown", "dropMenu", "gifSpeedText", "gifSizeText", "createIndex",
-    "makeGIFs", "gifSizeSlider", "gifSpeedSlider", "daysSlider", "daysText", "fullPhoto"];
+let iFiles = 0;
+let nFiles = 0;
 
-
+let idList = Array(0);
+const elements = Array.from(document.querySelectorAll("*"));
+elements.forEach((element) => {
+    if (element.id != null && !"gifs tags btnStop btnStop2 status status2 progressBar progressBar2".includes(element.id))
+        idList.push(element.id)
+});
+console.log("idList " + JSON.stringify(idList));
 const limits = {
     gifSize: { minR: 10, maxR: 2160 },
     fontSize: { minR: .1, maxR: 3 },
     gifSpeed: { minR: 0, maxR: 20 },
-    vertDisplacement: { minR: 3, maxR: -2 },
+    vertDisplacement: { minR: -3, maxR: 3 },
     days: { minR: 0, maxR: 1000 },
 }
 /**
@@ -76,7 +80,7 @@ gSettings.charsPerFace = 10;  // not currently adjustable
 
 document.getElementById("merge").checked = gSettings.merge ? 1 : 0;
 document.getElementById("backStroke").checked = gSettings.backStroke ? 1 : 0;
-document.getElementById("fullPhoto").checked = gSettings.fullPhoto ? 1: 0;
+document.getElementById("bigSquare").checked = gSettings.bigSquare ? 1 : 0;
 document.getElementById("outputMode").value = gSettings.outputMode;
 document.getElementById("outputMode2").value = gSettings.outputMode;
 
@@ -117,7 +121,7 @@ document.getElementById("btnTagFile").addEventListener("click", () => {
     tagMultiFiles();
 });
 document.getElementById("btnTagFolder").addEventListener("click", () => {
-    tagBatchFiles(null, null);
+    tagBatchFiles( );
 });
 document.getElementById("makeGIFs").addEventListener("click", () => {
     gifBatchFiles();
@@ -140,9 +144,9 @@ document.getElementById("backStroke").addEventListener("change", evt => {
     localStorage.setItem("backStroke", gSettings.backStroke.toString());
     tagSingleFile();;
 });
-document.getElementById("fullPhoto").addEventListener("change", evt => {
-    gSettings.fullPhoto = evt.target.checked;
-    localStorage.setItem("fullPhoto", gSettings.fullPhoto.toString());
+document.getElementById("bigSquare").addEventListener("change", evt => {
+    gSettings.bigSquare = evt.target.checked;
+    localStorage.setItem("bigSquare", gSettings.bigSquare.toString());
 });
 document.getElementById("outputMode").addEventListener("change", evt => {
     gSettings.outputMode = parseInt(evt.target.value);
@@ -247,16 +251,16 @@ document.getElementById("btnStop2").addEventListener("click", evt => {
  */
 function restorePersistentData() {
     //localStorage.clear();
-    gSettings.vertDisplacement = parseFloat(localStorage.getItem("vertDisplacement") || .8);
+    gSettings.vertDisplacement = parseFloat(localStorage.getItem("vertDisplacement") || -.9);
     gSettings.merge = (localStorage.getItem("merge") || "true") == "true";
     gSettings.backStroke = (localStorage.getItem("backStroke") || "true") == "true";
-    gSettings.fullPhoto = (localStorage.getItem("fullPhoto") || "true") == "true";  
+    gSettings.bigSquare = (localStorage.getItem("bigSquare") || "false") == "true";
     gSettings.outputMode = parseInt((localStorage.getItem("outputMode")) || 0);
     gSettings.fontSize = parseFloat(localStorage.getItem("fontSize") || 1.0);
     gSettings.gifSpeed = parseFloat((localStorage.getItem("gifSpeed")) || .5);
     gSettings.gifSize = parseInt(localStorage.getItem("gifSize") || 300);
     gSettings.days = parseFloat((localStorage.getItem("days")) || 1);
-  
+
 
     // SolidColors are stored as a hexValue string.
 
@@ -284,14 +288,16 @@ function checkValid(condition, textBoxId) {
 }
 
 function enableButton(str) {
-    document.getElementById(str).removeAttribute("disabled");
-
+    document.getElementById(str.toString()).removeAttribute("disabled");
 };
 function disableButton(str) {
     document.getElementById(str).setAttribute("disabled", "true");
 };
 
 function enableButtons() {
+    idList.forEach((btn) => enableButton(btn));
+    document.getElementById("status").innerHTML = "";
+    document.getElementById("status2").innerHTML = "";
     if (gSettings.outputMode < 2) {
         document.getElementById("tags").className = "sp-tab-page visible";
         document.getElementById("gifs").className = "sp-tab-page ";
@@ -299,19 +305,19 @@ function enableButtons() {
         document.getElementById("gifs").className = "sp-tab-page visible";
         document.getElementById("tags").className = "sp-tab-page ";
     }
-
     stopTag = false;
-    idList.forEach((btn) => enableButton(btn));
     disableButton("btnStop");
     disableButton("btnStop2");
-    // window.location.reload();  // this erases all settings in the html!
 }
 
-function disableButtons() {
+function disableButtons(str) {
+    idList.forEach((btn) => disableButton(btn));
+    document.getElementById("status").innerHTML = str;
+    document.getElementById("status2").innerHTML = str;
     enableButton("btnStop");
     enableButton("btnStop2");
-    idList.forEach((btn) => disableButton(btn));
     stopTag = false;
+
 }
 makeHelpDialogs();
 

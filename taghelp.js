@@ -64,7 +64,9 @@ const txt = [
     '  This analyzes all the files and folders under the foot folder. '+
     '</p>',
      // Step 8
-    '<p></p>',
+    '<p> The GIFs are square.  \"Big Square\" copies from each photo as large a square as possible centered on the person. If \"Big Square\" is not selected &nbsp; '+
+    ' just the person\'s face is copied into the GIF. ' + 
+    '</p>',
     // Step 9
     '<p>Now select which people to make GIFs for.  If a single person’s name is selected, then only one GIF will be made. &nbsp; '+
     '  If a keyword has been applied to a number of photos, then GIFs will be made for all the people who were in those photos. &nbsp; ' +
@@ -72,7 +74,7 @@ const txt = [
     ' the drop down list will cause GIFs to made of all people who were in the senior class.'+
     '</p>',
     // Step 10
-    '<p>The GIFs are square.  The GIF size is the number of pixels on a side for the resulting GIFs. &nbsp; '+
+    '<p>The GIF size is the number of pixels on a side for the resulting GIFs. &nbsp; '+
     'The Frame Speed is the number of seconds that each frame will display. A small random perturbation is applied&nbsp; '+
     ' so that a matrix of GIFs will blink randomly. See an example at https://www.uhsclassof65.org/Clippings/Little-Gifs/'+
     '</p>',

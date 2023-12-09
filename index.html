@@ -40,8 +40,8 @@
     </p>
 
     <p>
-      <sp-slider id="verticalPositionSlider"></sp-slider>
-      <sp-slider id="fontSizeSlider"> </sp-slider>
+      <sp-slider id="verticalPositionSlider" width="45%"></sp-slider>
+      <sp-slider id="fontSizeSlider" width="45%"></sp-slider>
     </p>
 
 
@@ -59,10 +59,11 @@
     <div>
       <div class="btn">
         <sp-button id="btnStop" disabled size="s">Cancel</sp-button>
+        <sp-label size="s" id="status"></sp-label>        
         <sp-button id="btnHelp" size="s"> Help </sp-button>
       </div>
     </div>
-
+    <sp-progressbar id="progressBar" max=100 value=0 size="s" style="width: 100%">
   </div>
 
   <!-- ############################################################################ -->
@@ -86,7 +87,7 @@
           <sp-menu id="dropMenu" slot="options" selectable>
           </sp-menu>
         </sp-picker>
-        <sp-checkbox id="fullPhoto">Full Photo </sp-checkbox>
+        <sp-checkbox id="bigSquare">Big Square </sp-checkbox>
       </div>
 
       <p>
@@ -118,11 +119,12 @@
       <div>
         <div class="btn">
           <sp-button id="btnStop2" disabled size="s">Cancel</sp-button>
+          <sp-label size="s" id="status2"></sp-label>
           <sp-button id="btnHelp2" size="s"> Help </sp-button>
         </div>
       </div>
 
-      <sp-progressbar id="progressBar" max=100 value=0 size="s" style="width: 100%">
+      <sp-progressbar id="progressBar2" max=100 value=0 size="s" style="width: 100%">
       </sp-progressbar>
   
   </div>

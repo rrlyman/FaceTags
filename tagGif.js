@@ -2,7 +2,7 @@
 // copywrite 2023 Richard R. Lyman
 
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
-const { getFaceTagsTreeName, skipThisEntry } = require("./tagFace.js");
+const { getFaceTagsTreeName, skipThisEntry, countFiles, progressBar,  resetHistoryState } = require("./tagFace.js");
 
 /**
  * personsDict is a one to many dictionary, where the key is the person's name, 
@@ -30,12 +30,9 @@ function checkKeywords() {
             //subjectDict[key][n] = subjectDict[key][n] + personsDict[key].entry.name;
          }
       }
-
-
    }
-
-
 }
+
 /**
  * Opens up a folder dialog box to select top folder to process
  * Makes a new folder called originalPhotosFolder_n and builds a tree under it that duplicates
@@ -52,21 +49,21 @@ async function createIndex() {
 
    originalPhotosFolder = await fs.getFolder();
    if (originalPhotosFolder != null) {  // null if user cancels dialog              
-      disableButtons();  // only enable the Cancel button 
+
       // gather all the years of the each person
       nFiles = await countFiles(originalPhotosFolder);
       iFiles = 0;
-
+      disableButtons("Creating an Index");  // only enable the Cancel button 
       personsDict = {};  // keys = person names, entries = rectange definitions and subjects
       subjectDict = {};   // keys = subjects, entries = person names
 
-      document.getElementById("progressBar").value = "0";
+      progressBar(0);
       await recurseIndex(originalPhotosFolder);
 
       // check for illegal keywords
       // checkKeywords();
 
-      document.getElementById("progressBar").value = "100";
+      progressBar(100);
 
       // clean out the keyword list on the panel
       let menu = document.getElementById("dropMenu");
@@ -121,7 +118,8 @@ function filtered() {
    // the value of which is the filename, person name, biggest area face rectange for the period, etc
 
    const msPerPeriod = 1000 * 60 * 60 * 24 * gSettings.days;
-
+   disableButtons("Applying Options");
+   
    // filters the array of times by only including one time in a given time perion in the newDict
    for (personKey in personsDict) {
       personsDict[personKey].forEach((person) => {
@@ -140,7 +138,6 @@ function filtered() {
          }
       })
    };
-
 
    if (filterKeyword == "")
       return newDict;  // unsorted ??
@@ -174,7 +171,7 @@ async function gifBatchFiles() {
     * a filtered version of the personsDict
     */
    let filteredDict = filtered();
-   disableButtons();
+   disableButtons("Making Gifs");
 
    // create gif folder
    const ents = await originalPhotosFolder.getEntries();
@@ -185,16 +182,14 @@ async function gifBatchFiles() {
 
    let iPerson = 0;
    let nPersons = Object.keys(filteredDict).length;
-   document.getElementById("progressBar").value = "0";
+   progressBar(0);
 
    for (var personKey in filteredDict) {
-      document.getElementById("progressBar").value = (100 * iPerson++ / nPersons).toString();
+      progressBar((100 * iPerson++ / nPersons).toString());
 
       if (stopTag)
          break;
       const dpi = 72;
-    
-      
       let targetDoc = null;
 
       // For each person, there was an entry, one per period.
@@ -210,18 +205,27 @@ async function gifBatchFiles() {
          // make the source image the same size as the gif
          let person = filteredDict[personKey][msKeys[i]];
          let sourceDoc = await executeAsModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
+         await executeAsModal(() => sourceDoc.flatten(), { "commandName": "Flattening" });   
+         /* With bigSquare enabled, create the biggest square that can be contained in the document positioned so distance from the center point of the person
+         to the centerpoint of the square is minimized.
+         
+         With the full mode off, create a square, twice as large as the person's rectangle,  that can be contained in the document 
+         positioned so distance from the center point of the person
+         to the centerpoint of the square is minimized.
+         */
+         let s;
+         if (gSettings.bigSquare)
+            s = Math.min(sourceDoc.width, sourceDoc.height);
+         else
+            s = 2 * person.w;
+         const centerX = s / 2;  // the center of the new square
+         const centerY = s / 2;
+         const playRight = sourceDoc.width - s;
+         const playDown = sourceDoc.height - s;
+         const moveRight = Math.min(playRight, Math.max(0, person.x-centerX));
+         const moveDown = Math.min(playDown, Math.max(0, person.y-centerY));
+         let bounds = { left: moveRight, top: moveDown, bottom: moveDown + s, right: moveRight + s };
 
-         let distanceToEdge = Math.min(person.x, sourceDoc.width - person.x, person.y, sourceDoc.height - person.y);
-         if (!gSettings.fullPhoto){
-            distanceToEdge = Math.min(distanceToEdge, person.w, person.x - person.w, person.h, person.y - person.h);
-         }
-
-         const left = person.x - distanceToEdge;
-         const right = person.x + distanceToEdge;
-         const top = person.y - distanceToEdge;
-         const bottom = person.y + distanceToEdge;
-       //  let bounds = { left: Math.max(0, left), top: Math.max(0, top), right: Math.min(sourceDoc.width, right), bottom: Math.min(sourceDoc.height, bottom) };
-         let bounds = {left: left, right: right, top: top, bottom: bottom};
          await executeAsModal(() => sourceDoc.crop(bounds), { "commandName": "Crop File" });
          await executeAsModal(() => sourceDoc.resizeImage(gSettings.gifSize, gSettings.gifSize, dpi), { "commandName": "Resize batched File" });
          if (targetDoc == null) {
@@ -246,27 +250,11 @@ async function gifBatchFiles() {
    }
 
    console.log("topRecursionLevel");
-   document.getElementById("progressBar").value = "0";
+   progressBar(0);
    enableButtons();
 };
 
-/**for the progress bar, get an overall file ocount.
- * 
- * @param {*} folder The root file folder
- * @returns the number of file entries under the root
- */
-async function countFiles(folder) {
-   let ents = await folder.getEntries();
-   let iCount = 0;
-   for (let i = 0; i < ents.length; i++) {
-      if (skipThisEntry(ents[i]))
-         continue;
-      iCount++;
-      if (ents[i].isFolder)
-         iCount += await countFiles(ents[i]);
-   }
-   return iCount;
-}
+
 
 /** Create an index of all the face rectangles in the folder tree
  * 
@@ -279,7 +267,7 @@ async function recurseIndex(originalPhotosFolder) {
    const entries = await originalPhotosFolder.getEntries();
    for (let i = 0; (i < entries.length) && (!stopTag); i++) {
       const entry = entries[i];;
-      document.getElementById("progressBar").value = (100 * ++iFiles / nFiles).toString();
+      progressBar((100 * ++iFiles / nFiles).toString());
 
       if (skipThisEntry(entry))
          continue;
