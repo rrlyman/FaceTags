@@ -61,3 +61,14 @@ p {
   flex: 0 0 auto;
 }
 
+.one-third {
+  width: 33%;
+}
+.box {
+  width: 30%;
+  height: 100px;
+  border: 1px solid black;
+  /* padding: 10px; */
+  /* margin: 10px; */
+}
+

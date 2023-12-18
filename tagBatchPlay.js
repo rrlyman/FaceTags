@@ -3,8 +3,6 @@
 
 // copywrite 2023 Richard R. Lyman
 
-const { displayDictionary } = require('./tagAddLayer');
-
 
 /* // Events recognized as notifiers are not re-playable in most of the cases. There is high chance that generated code won't work.
 
@@ -143,7 +141,6 @@ function RGBFloatToSolid(rgbFloat) {
     cl.rgb.red = rgbFloat.RGBFloatColor.red;
     cl.rgb.green = rgbFloat.RGBFloatColor.grain;
     cl.rgb.blue = rgbFloat.RGBFloatColor.blue;
-    console.log(cl.rgb.hexValue);
     return cl;
 };
 
@@ -604,17 +601,16 @@ async function brightnessAndContrast() {
 }
 
 
-
 /**
  * When called, a landscape mode face tagged version of the photo has been created.  The text is in the FaceTags group
  * Make an artboard, twice as tall as the original photo, containing the original photo on the top half
  * and a dimly gray version of the photo ont he bottom half with the Person names on each person
- * @param {*} gDoc 
+ * @param {*} aDoc 
  */
 
- async function makeAPortrait(gDoc) {
-    let dWidth = gDoc.width;
-    let dHeight = gDoc.height;
+ async function makeAPortrait(aDoc) {
+    let dWidth = aDoc.width;
+    let dHeight = aDoc.height;
     // at this point there are two layers, the background layer and the FaceTags Group with text
     await selectBackgroundLayer();  // the selection was on Facetags, move selection to the background
     await copyBackGroundLayer();    // make a background copy layer

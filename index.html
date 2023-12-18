@@ -19,8 +19,8 @@
     <sp-divider size="l"></sp-divider>
 
     <div class="btn">
-      <sp-button id="btnForeground" size="s">Text Color</sp-button>
-      <sp-button id="btnBackground" size="s">Border Color</sp-button>
+      <sp-button id="foreColor" size="s">Text Color</sp-button>
+      <sp-button id="backColor" size="s">Border Color</sp-button>
     </div>
 
     <div class="btn">
@@ -30,17 +30,17 @@
 
 
     <p>
-      <sp-label size="s" for="verPosText">Vertical Position</sp-label>
-      <sp-label size="s" for="fontSizeText">Font Size</sp-label>
+      <sp-label size="s" for="vertDisplacement">Vertical Position</sp-label>
+      <sp-label size="s" for="fontSize">Font Size</sp-label>
     </p>
 
     <p>
-      <sp-textfield size="s" id="verPosText"></sp-textfield>
-      <sp-textfield size="s" id="fontSizeText">
+      <sp-textfield size="s" id="vertDisplacement"></sp-textfield>
+      <sp-textfield size="s" id="fontSize">
     </p>
 
     <p>
-      <sp-slider id="verticalPositionSlider" width="45%"></sp-slider>
+      <sp-slider id="vertDisplacementSlider" width="45%"></sp-slider>
       <sp-slider id="fontSizeSlider" width="45%"></sp-slider>
     </p>
 
@@ -58,12 +58,12 @@
 
     <div>
       <div class="btn">
-        <sp-button id="btnStop" disabled size="s">Cancel</sp-button>
-        <sp-label size="s" id="status"></sp-label>        
+        <sp-button id="btnStop" disabled size="s" running="true">Cancel</sp-button>
+        <sp-label size="s" id="status" running="true"></sp-label>        
         <sp-button id="btnHelp" size="s"> Help </sp-button>
       </div>
     </div>
-    <sp-progressbar id="progressBar" max=100 value=0 size="s" style="width: 100%">
+    <sp-progressbar id="progressBar" max=100 value=0 size="s" style="width: 100%" running="true">
   </div>
 
   <!-- ############################################################################ -->
@@ -91,15 +91,15 @@
       </div>
 
       <p>
-        <sp-label size="s" for="gifSizeText">GIF Size</sp-label>
-        <sp-label size="s" for="gifSpeedText">Frame Display Seconds</sp-label>
-        <sp-label size="s" for="daysText">Days/Frame Filter</sp-label>
+        <sp-label size="s" for="gifSize">GIF Size</sp-label>
+        <sp-label size="s" for="gifSpeed">Frame Display Seconds</sp-label>
+        <sp-label size="s" for="days">Days/Frame Filter</sp-label>
       </p>
 
       <p>
-        <sp-textfield size="s" id="gifSizeText"></sp-textfield>
-        <sp-textfield size="s" id="gifSpeedText"></sp-textfield>
-        <sp-textfield size="s" id="daysText"></sp-textfield>
+        <sp-textfield size="s" id="gifSize"></sp-textfield>
+        <sp-textfield size="s" id="gifSpeed"></sp-textfield>
+        <sp-textfield size="s" id="days"></sp-textfield>
       </p>
 
       <p>
@@ -117,14 +117,14 @@
       <sp-divider size="l"></sp-divider>
 
       <div>
-        <div class="btn">
-          <sp-button id="btnStop2" disabled size="s">Cancel</sp-button>
-          <sp-label size="s" id="status2"></sp-label>
+        <div class="btn" >
+          <sp-button id="btnStop2" disabled size="s" running="true">Cancel</sp-button>
+          <sp-label size="s" id="status2" running="true"></sp-label>
           <sp-button id="btnHelp2" size="s"> Help </sp-button>
         </div>
       </div>
 
-      <sp-progressbar id="progressBar2" max=100 value=0 size="s" style="width: 100%">
+      <sp-progressbar id="progressBar2" max=100 value=0 size="s" style="width: 100%" running="true">
       </sp-progressbar>
   
   </div>

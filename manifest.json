@@ -1,7 +1,7 @@
 {
   "id": "caeaf982",
   "name": "FaceTag",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "main": "index.html",
   "requiredPermissions": {
     "localFileSystem": "request"
