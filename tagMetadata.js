@@ -1,7 +1,6 @@
 
 // copywrite 2023 Richard R. Lyman
 
-const { analyzeRectangles, addLayer, displayDictionary } = require("./tagAddLayer.js"); displayDictionary
 
 let lastDate = "2021-09-15T00:22:20";
 /**
@@ -13,7 +12,6 @@ let lastDate = "2021-09-15T00:22:20";
  */
 
 function readPersonsFromMetadata(entry) {
-
 
     let persons = Array();
     let subjects = Array();
@@ -35,7 +33,6 @@ function readPersonsFromMetadata(entry) {
         xmpMeta = new xmp.XMPMeta(getDocumentXMP());
 
     } else {
-        console.log("filepath =" + entry.nativePath);
         xmpFile = new xmp.XMPFile(entry.nativePath, xmp.XMPConst.FILE_JPEG, xmp.XMPConst.OPEN_FOR_READ); // not listed as async
         xmpMeta = xmpFile.getXMP();  // not listed as async
     }
