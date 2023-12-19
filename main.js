@@ -122,7 +122,7 @@ document.getElementById("fontSizeSlider").value = sliderFromVal(gSettings.fontSi
 document.getElementById("fontSize").value = gSettings.fontSize.toFixed(2);
 
 document.getElementById("gifSizeSlider").value = sliderFromVal(gSettings.gifSize, limits.gifSizeSlider);
-document.getElementById("gifSize").value = gSettings.gifSize.toFixed(2);
+document.getElementById("gifSize").value = gSettings.gifSize.toFixed(0);
 
 document.getElementById("gifSpeedSlider").value = sliderFromVal(gSettings.gifSpeed, limits.gifSpeedSlider);
 document.getElementById("gifSpeed").value = gSettings.gifSpeed.toFixed(2);
@@ -186,10 +186,10 @@ document.getElementById("fullPhoto").addEventListener("change", evt => {
     gSettings.fullPhoto = evt.target.checked;
     localStorage.setItem("fullPhoto", gSettings.fullPhoto.toString());
 });
-function outputModeEvent(evt) {
+async function outputModeEvent(evt) {
     gSettings.outputMode = parseInt(evt.target.value);
     localStorage.setItem("outputMode", gSettings.outputMode);
-    enableButtons();
+    await enableButtons();
     setOutputModeChecked();
     if (gSettings.outputMode < 2)
         tags.tagSingleFile();
@@ -197,22 +197,22 @@ function outputModeEvent(evt) {
 document.getElementById("outputMode").addEventListener("change", evt => outputModeEvent(evt));
 document.getElementById("outputMode2").addEventListener("change", evt => outputModeEvent(evt));
 document.getElementById("daysSlider").addEventListener("change", evt => {
-    sliderToText(evt.target.value, "days", "daysSlider", "days");
+    sliderToText(evt.target.value, "days", 2);
 });
 document.getElementById("vertDisplacementSlider").addEventListener("change", evt => {
-    sliderToText(evt.target.value, "vertDisplacement", "vertDisplacementSlider", "vertDisplacement");
+    sliderToText(evt.target.value, "vertDisplacement", 2);
     tags.tagSingleFile();
 });
 document.getElementById("gifSizeSlider").addEventListener("change", evt => {
-    sliderToText(evt.target.value, "gifSize", "gifSizeSlider", "gifSize");
+    sliderToText(evt.target.value, "gifSize", 0);
     document.getElementById("gifSize").value = parseInt(document.getElementById("gifSize").value).toString();
 });
 document.getElementById("fontSizeSlider").addEventListener("change", evt => {
-    sliderToText(evt.target.value, "fontSize");
+    sliderToText(evt.target.value, "fontSize", 2);
     tags.tagSingleFile();
 });
 document.getElementById("gifSpeedSlider").addEventListener("change", evt => {
-    sliderToText(evt.target.value, "gifSpeed", "gifSpeedSlider", "gifSpeed");
+    sliderToText(evt.target.value, "gifSpeed", 2);
 });
 document.getElementById("vertDisplacement").addEventListener("change", evt => {
     textToSlider(evt, "vertDisplacement", "vertDisplacementSlider", "vertDisplacement");
@@ -245,8 +245,8 @@ document.getElementById("backColor").addEventListener("click", evt => {
     localStorage.setItem("backColor", gSettings.backColor.rgb.hexValue);
     tags.tagSingleFile();;
 });
-function stopButtonEvent(evt) {
-    enableButtons();
+async function stopButtonEvent(evt) {
+    await enableButtons();
     stopTag = true;
 };
 document.getElementById("btnStop").addEventListener("click", evt => stopButtonEvent(evt));
@@ -306,14 +306,14 @@ function disableButton(str) {
  * Set all the buttons in the runningList to disabled.
  * 
  */
-function enableButtons() {
+async function enableButtons() {
     notRunningList.forEach((btn) => enableButton(btn));
     runningList.forEach((btn) => disableButton(btn));
     document.getElementById("status").innerHTML = "";
     document.getElementById("status2").innerHTML = "";
 
     stopTag = false;
-    progressBar(0);
+    await progressBar(0);
 }
 /**
 *  Set all the buttons in the notRunningList to disabled'
@@ -321,12 +321,12 @@ function enableButtons() {
  * 
  * @param {*} str 
  */
-function disableButtons(str) {
+async function disableButtons(str) {
     notRunningList.forEach((btn) => disableButton(btn));
     runningList.forEach((btn) => enableButton(btn));
     document.getElementById("status").innerHTML = str;
     document.getElementById("status2").innerHTML = str;
-    progressBar(0);
+    await progressBar(0);
     stopTag = false;
 }
 
@@ -346,11 +346,11 @@ function sliderFromVal(val, valRange) {
  * @param {*} sliderValue 
  * @param {*} textID the string value key in the limits directory that describes the slider right and left bounds
  */
-function sliderToText(sliderValue, textID) {
+function sliderToText(sliderValue, textID, nPlaces) {
     const sliderID = textID + "Slider";
     let lmts = limits[sliderID];
     gSettings[textID] = (sliderValue / 100) * (lmts.maxR - lmts.minR) + lmts.minR;
-    document.getElementById(textID).value = gSettings[textID].toFixed(2); // two decimals
+    document.getElementById(textID).value = gSettings[textID].toFixed(nPlaces); // two decimals
     localStorage.setItem(textID, gSettings[textID]);
 };
 
@@ -364,13 +364,20 @@ function setOutputModeChecked() {
     document.getElementById("tags").className = gSettings.outputMode < 2 ? "sp-tab-page visible" : "sp-tab-page ";
     document.getElementById("gifs").className = gSettings.outputMode == 2 ? "sp-tab-page visible" : "sp-tab-page ";
 };
+
 /** set the value of the progress bar slider, 0 = left, 100 = right
  * 
  * @param {*} val 
  */
-function progressBar(val) {
+async function progressBar(val) {
+    var lastVal = 0;
+    if (val === lastVal) return; // limit number of calls and timeouts
+    lastVal = val;
     document.getElementById("progressBar").value = val;
     document.getElementById("progressBar2").value = val;
+
+
+    await new Promise(r => setTimeout(r, 10));    // a slight break is need to draw the progressbar  
 
 }
 

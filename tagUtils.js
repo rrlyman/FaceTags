@@ -58,7 +58,7 @@ function skipThisEntry(entry) {
  * @returns the number of file entries under the root
  */
 async function countFiles(folder) {
-    disableButtons("Counting Files");
+    await disableButtons("Counting Files");
     let ents = await folder.getEntries();
     let iCount = 0;
     for (let i = 0; i < ents.length; i++) {

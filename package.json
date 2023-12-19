@@ -1,10 +1,7 @@
 {
   "name": "uxp-face-tags",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "description": "Place a name tag on each person.",
   "author": "Richared Lyman",
-  "license": "Apache-2.0",
-  "dependencies": {
-    "yarn": "^1.22.21"
+  "license": "Apache-2.0"
   }
-}

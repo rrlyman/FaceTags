@@ -43,7 +43,7 @@ class Tags {
      */
     async tagSingleFile() {
         this.aDoc = app.activeDocument;
-        disableButtons("Refreshing Labels");
+        await disableButtons("Refreshing Labels");
         if (app.documents.length == 0) {
             alert("No file is loaded. In PhotoShop Classic, load a file before running the script!");
         } else {
@@ -61,7 +61,7 @@ class Tags {
      */
     async tagMultiFiles() {
         this.aDoc = app.activeDocument;
-        disableButtons("Tagging Files");
+        await disableButtons("Tagging Files");
         // Put up a dialog box, and get a list of file(s) to face tag.
         const files = await fs.getFileForOpening({ allowMultiple: true });
 
@@ -92,7 +92,7 @@ class Tags {
         }
         const nFiles = await countFiles(originalPhotosFolder);
         this.dontAsk = true;  // omit no perssons found message
-        disableButtons("Processing Folders");  // only enable the Cancel button  
+        await disableButtons("Processing Folders");  // only enable the Cancel button  
 
         // create the top level labeledDirectoryFolder
         const ents = await originalPhotosFolder.getEntries();
@@ -115,7 +115,6 @@ class Tags {
 
         let newFolder = null;
 
-
         // traverse the labeledDirectory folder with an folder names similar to the original folder tree
         newFolder = await labeledDirectoryFolder.createFolder(photosFolder.name + labeledSuffix);
 
@@ -123,7 +122,7 @@ class Tags {
         if (newFolder != null) {
             const entries = await photosFolder.getEntries();
             for (let i = 0; (i < entries.length) && (!stopTag); i++) {
-                progressBar((100 * ++iFiles / nFiles).toString());
+                await progressBar((100 * ++iFiles / nFiles).toString());
                 const entry = entries[i];;
 
                 if (skipThisEntry(entry))
@@ -198,6 +197,8 @@ class Tags {
             // For each person in the picture, make a text layer containing the persons's name on their chest in a TextItem.
 
             for (let i = 0; (i < persons.length) && (!stopTag); i++) {
+                await progressBar(i*100/persons.length);
+     
                 await this.addLayer(gSettings, persons[i], bestRect);
             }
 

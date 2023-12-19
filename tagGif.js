@@ -54,7 +54,7 @@ class Gifs {
 
          // gather all the years of the each person
          this.nFiles = await countFiles(this.originalPhotosFolder);
-         disableButtons("Creating an Index");  // only enable the Cancel button 
+         await disableButtons("Creating an Index");  // only enable the Cancel button 
          this.personsDict = {};  // keys = person names, entries = rectange definitions and subjects
          this.subjectDict = {};   // keys = subjects, entries = person names
 
@@ -63,7 +63,7 @@ class Gifs {
          // check for illegal keywords
          // checkKeywords();
 
-         progressBar(100);
+         await disableButtons("Processing Index");
 
          // clean out the keyword list on the panel
          let menu = document.getElementById("dropMenu");
@@ -90,7 +90,6 @@ class Gifs {
 
          menu.appendChild(document.createElement("sp-menu-divider"));
 
-
          // now add anyone to the dropdown who has a person rectangle
 
          let personNames = Object.keys(this.personsDict).sort();
@@ -99,10 +98,10 @@ class Gifs {
             item.textContent = personNames[i];
             menu.appendChild(item);
          }
-
-         enableButtons();
+         await enableButtons();
       }
    };
+
    /* TBD
    Use the entire photo.  
       TAGS The text is all the keywords found on that photo. The entire photo is always used. 
@@ -118,18 +117,16 @@ class Gifs {
    Use only photos that have the selected keywords
       TAGs, only label photos that exactly match the keywords selected
       GIFs, only GIF photos that exactly match the keywords selected (this makes a slideshow out of keyworded entries) which is a useful feature)
-   
-   
-   
-   
    */
+
+
    /** If the selected filterKeyword from the drop box is "" then use the this.personsDict as the source of the names to GIF
     * If the selected filterKeyword is in the this.subjectDict, the use all of the names for filterKeyword in the this.subjectDict.
     * If the selected filtereyword is in the this.personsDict, GIF only that person
     * 
     * @param {*} newDict  a filtered version of the this.personsDict, unsorted!
     */
-   filtered() {
+   async filtered() {
 
       let newDict = {};
       // create a dictionary of person names each of which
@@ -137,7 +134,7 @@ class Gifs {
       // the value of which is the filename, person name, biggest area face rectange for the period, etc
 
       const msPerPeriod = 1000 * 60 * 60 * 24 * gSettings.days;
-      disableButtons("Applying Options");
+      await disableButtons("Applying Options");
 
       // filters the array of times by only including one time in a given time perion in the newDict
       for (let personKey in this.personsDict) {
@@ -184,13 +181,13 @@ class Gifs {
    async gifBatchFiles() {
       // if the index has already been created, then skip index creation
       if (this.originalPhotosFolder == null) {
-         await createIndex();
+         await this.createIndex();
       }
       /**
        * a filtered version of the this.personsDict
        */
-      let filteredDict = this.filtered();
-      disableButtons("Making Gifs");
+      let filteredDict = await this.filtered();
+      await disableButtons("Making Gifs");
 
       // create gif folder
       const ents = await this.originalPhotosFolder.getEntries();
@@ -202,15 +199,20 @@ class Gifs {
       let iPerson = 0;
       let nPersons = Object.keys(filteredDict).length;
 
-
       for (let personKey in filteredDict) {
-         progressBar((100 * iPerson++ / nPersons).toString());
+         await progressBar((100 * iPerson++ / nPersons).toString());
 
          if (stopTag)
             break;
          const dpi = 72;
-         let targetDoc = null;
-
+         let targetDoc =  await executeAsModal(() => app.createDocument({
+            width: gSettings.gifSize, 
+            height: gSettings.gifSize, 
+            resolution: dpi, 
+            fill: "transparent"
+         
+         }), { "commandName": "Make target" });
+               
          // For each person, there was an entry, one per period.
          // Go through the periods and make a frame in the GIF for each period
 
@@ -226,21 +228,20 @@ class Gifs {
             let sourceDoc = await executeAsModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
             await executeAsModal(() => sourceDoc.flatten(), { "commandName": "Flattening" });
 
-            /* With fullPhoto enabled, create the biggest square that can be contained in the document positioned so distance from the center point of the person
-            to the centerpoint of the square is minimized.
-            
-            With the full mode off, create a square, twice as large as the person's rectangle,  that can be contained in the document 
-            positioned so distance from the center point of the person
-            to the centerpoint of the square is minimized.
-            */
+            //  With fullPhoto enabled, create a document where the biggest dimension is equal to the gifSize
 
             if (gSettings.fullPhoto) {
                let biggestDimension = Math.max(sourceDoc.width, sourceDoc.height);
                await executeAsModal(() => sourceDoc.resizeImage(parseInt(gSettings.gifSize * sourceDoc.width / biggestDimension),
                   parseInt(gSettings.gifSize * sourceDoc.height / biggestDimension), dpi), { "commandName": "Resize batched File" });
-               await executeAsModal(() => sourceDoc.resizeCanvas(gSettings.gifSize, gSettings.gifSize), { "commandName": "Resize batched File" });
+               // await executeAsModal(() => sourceDoc.resizeCanvas(gSettings.gifSize, gSettings.gifSize), { "commandName": "Resize batched File" });
 
             } else {
+
+               // With the full mode off, create a square, twice as large as the person's rectangle,  that can be contained in the document 
+               // positioned so distance from the center point of the person
+               // to the centerpoint of the square is minimized.
+
                let s = 2 * person.w;
                const centerX = s / 2;  // the center of the new square
                const centerY = s / 2;
@@ -252,35 +253,32 @@ class Gifs {
                await executeAsModal(() => sourceDoc.crop(bounds), { "commandName": "Crop File" });
                await executeAsModal(() => sourceDoc.resizeImage(gSettings.gifSize, gSettings.gifSize, dpi), { "commandName": "Resize batched File" });
             }
-            if (targetDoc == null) {
-               targetDoc = sourceDoc;  // the first clipped sourceDoc is the target 
-            } else {
-               await executeAsModal(() => sourceDoc.layers[0].duplicate(targetDoc), { "commandName": "Make new layer" });
-               await executeAsModal(() => sourceDoc.closeWithoutSaving(), { "commandName": "Closing" });
-               sourceDoc = null;
-            }
+
+            await executeAsModal(() => sourceDoc.layers[0].duplicate(targetDoc), { "commandName": "Make new layer" });
+            await executeAsModal(() => sourceDoc.closeWithoutSaving(), { "commandName": "Closing" });
+            sourceDoc = null;
+
             await new Promise(r => setTimeout(r, 100));    // required to give time to process Cancel Button
          }
 
          // turn the layers into a gif and save it
 
-         if (targetDoc.layers.length > 1)
+         if (targetDoc.layers.length > 1) {
+            await executeAsModal(() => targetDoc.layers.getByName("Layer 1").delete(), { "commandName": "Removing transparent layer" });
             await this.makeGif();
+         }
          let saveEntry = await gifFolder.createFile(personKey + '.gif');
          await executeAsModal(() => targetDoc.saveAs.gif(saveEntry), { "commandName": "Saving" });
          await executeAsModal(() => targetDoc.closeWithoutSaving(), { "commandName": "Closing" });
-         targetDoc = null;
       }
-
-      progressBar(0);
-      enableButtons();
+      await progressBar(0);
+      await enableButtons();
    };
-
 
 
    /** Create an index of all the face rectangles in the folder tree
     * 
-    * @param {*} rootFolder 
+    * @param {*} rootFolder The folder underwhich all files will be processed.
     * @returns 
     */
    async recurseIndex(rootFolder) {
@@ -289,7 +287,7 @@ class Gifs {
       const entries = await rootFolder.getEntries();
       for (let i = 0; (i < entries.length) && (!stopTag); i++) {
          const entry = entries[i];;
-         progressBar((100 * ++this.iFiles / this.nFiles).toString());
+         await progressBar((100 * ++this.iFiles / this.nFiles).toString());
 
          if (skipThisEntry(entry))
             continue;
@@ -382,7 +380,9 @@ class Gifs {
          {}
       );
    }
-
+   /**
+    * Grabs all the layers and puts them into a single GIF, with slightly random speed settings.
+    */
    async makeGif() {
       await executeAsModal(() => this.makeGif_actn(), { "commandName": "Action Commands" });
    }
