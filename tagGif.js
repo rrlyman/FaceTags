@@ -205,14 +205,14 @@ class Gifs {
          if (stopTag)
             break;
          const dpi = 72;
-         let targetDoc =  await executeAsModal(() => app.createDocument({
-            width: gSettings.gifSize, 
-            height: gSettings.gifSize, 
-            resolution: dpi, 
+         let targetDoc = await executeAsModal(() => app.createDocument({
+            width: gSettings.gifSize,
+            height: gSettings.gifSize,
+            resolution: dpi,
             fill: "transparent"
-         
+
          }), { "commandName": "Make target" });
-               
+
          // For each person, there was an entry, one per period.
          // Go through the periods and make a frame in the GIF for each period
 
@@ -263,12 +263,14 @@ class Gifs {
 
          // turn the layers into a gif and save it
 
-         if (targetDoc.layers.length > 1) {
+         if (targetDoc.layers.length > 2) {
+  
             await executeAsModal(() => targetDoc.layers.getByName("Layer 1").delete(), { "commandName": "Removing transparent layer" });
             await this.makeGif();
+
+            let saveEntry = await gifFolder.createFile(personKey + '.gif');
+            await executeAsModal(() => targetDoc.saveAs.gif(saveEntry), { "commandName": "Saving" });
          }
-         let saveEntry = await gifFolder.createFile(personKey + '.gif');
-         await executeAsModal(() => targetDoc.saveAs.gif(saveEntry), { "commandName": "Saving" });
          await executeAsModal(() => targetDoc.closeWithoutSaving(), { "commandName": "Closing" });
       }
       await progressBar(0);

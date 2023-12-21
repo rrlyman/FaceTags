@@ -120,7 +120,7 @@ function readPersonsFromMetadata(entry) {
 
   
             // remove the person from the subjects
-            removeItemAll(subjects, person.name);
+            //removeItemAll(subjects, person.name);
         } 
     }
 
@@ -130,18 +130,6 @@ function readPersonsFromMetadata(entry) {
         xmpFile.closeFile(0);
     return [persons, subjects];
 };
-
-function removeItemAll(arr, value) {
-    var i = 0;
-    while (i < arr.length) {
-      if (arr[i] === value) {
-        arr.splice(i, 1);
-      } else {
-        ++i;
-      }
-    }
-    return arr;
-  }
 
 /**
  * picks up the metadata of the currently loaded photo in Photoshop
