@@ -261,16 +261,15 @@ class Gifs {
             await new Promise(r => setTimeout(r, 100));    // required to give time to process Cancel Button
          }
 
-         // turn the layers into a gif and save it
+         // turn the layers into a gif and save it. If there are less than 2 layers it seems to be a special case.
 
-         if (targetDoc.layers.length > 2) {
-  
+         if (targetDoc.layers.length > 2) {  
             await executeAsModal(() => targetDoc.layers.getByName("Layer 1").delete(), { "commandName": "Removing transparent layer" });
             await this.makeGif();
-
+         }
             let saveEntry = await gifFolder.createFile(personKey + '.gif');
             await executeAsModal(() => targetDoc.saveAs.gif(saveEntry), { "commandName": "Saving" });
-         }
+
          await executeAsModal(() => targetDoc.closeWithoutSaving(), { "commandName": "Closing" });
       }
       await progressBar(0);
