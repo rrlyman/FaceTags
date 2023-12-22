@@ -4,49 +4,17 @@
 // copywrite 2023 Richard R. Lyman
 
 
-/* // Events recognized as notifiers are not re-playable in most of the cases. There is high chance that generated code won't work.
-
-
-async function newDocumentFromHistory_actn() {
-   const result = await batchPlay(
-      [
-         {
-            _obj: "make",
-            _target: [
-               {
-                  _ref: "document"
-               }
-            ],
-            using: {
-               _ref: "historyState",
-               _property: "currentHistoryState"
-            },
-            _options: {
-               dialogOptions: "dontDisplay"
-            }
-         }
-      ],
-      {}
-   );
-}
-
-async function newDocumentFromHistory() {
-   await executeAsModal(newDocumentFromHistory_actn, {"commandName": "Action Commands"});
-}
-
- */
 
 /** Post Processing: add a background around the text for more readability
  * 
- * @param {*} gSettings dictionnary containing global settings
  * @returns Promise
  */
 
-async function setOutsideStroke(gSettings) {
-      await executeAsModal(() => setOutsideStroke_actn(gSettings), { "commandName": "Adding Effect" });
+async function setOutsideStroke() {
+      await executeAsModal(setOutsideStroke_actn, { "commandName": "Adding Effect" });
 };
 
-async function setOutsideStroke_actn(gSettings) {
+async function setOutsideStroke_actn() {
     const result = await batchPlay(
         [
             {

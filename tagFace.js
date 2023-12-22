@@ -1,7 +1,7 @@
 
 // copywrite 2023 Richard R. Lyman
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
-const { setOutsideStroke, makeAPortrait, trim, selectMoveTool } = require("./tagBatchPlay.js");
+const { setOutsideStroke, makeAPortrait } = require("./tagBatchPlay.js");
 const { getFaceTagsTreeName, skipThisEntry, countFiles } = require("./tagUtils.js");
 
 
@@ -25,15 +25,9 @@ class Tags {
         let persons = readPersonsFromMetadata(entry)[0];
         if (persons.length == 0)
             return false;
-        await executeAsModal(() => app.open(entry), { "commandName": "Opening batched File" });
-        if (this.aDoc != null) {
-            await this.faceTagTheImage(persons);
-        } else {
-            await executeAsModal(() => this.aDoc.closeWithoutSaving(), { "commandName": "Closing" });
-            await new Promise(r => setTimeout(r, 100));    // required to give time process Cancel Button               
-            return false;
-        }
-
+        this.aDoc = await executeAsModal(() => app.open(entry), { "commandName": "Opening batched File" });
+        await this.faceTagTheImage(persons);
+      
         await new Promise(r => setTimeout(r, 100));    // required to give time process Cancel Button  
         return true;
     }
@@ -51,7 +45,7 @@ class Tags {
             this.dontAsk = false;
             await this.faceTagTheImage(persons);
         }
-        enableButtons();
+        await enableButtons();
     };
 
     /**
@@ -60,7 +54,7 @@ class Tags {
      * the photos remain loaded in Photoshop
      */
     async tagMultiFiles() {
-        this.aDoc = app.activeDocument;
+   
         await disableButtons("Tagging Files");
         // Put up a dialog box, and get a list of file(s) to face tag.
         const files = await fs.getFileForOpening({ allowMultiple: true });
@@ -71,7 +65,7 @@ class Tags {
             if (! await this.openAndTagFileFromDisk(files[i]))
                 continue;
         }
-        enableButtons();
+        await enableButtons();
     };
     /**
      * Opens up a folder dialog box to select top folder to process
@@ -98,7 +92,7 @@ class Tags {
         const ents = await originalPhotosFolder.getEntries();
         newFolder = await originalPhotosFolder.createFolder(getFaceTagsTreeName(originalPhotosFolder.name, ents, labeledSuffix));
         recurseBatchFiles(originalPhotosFolder, newFolder, 0, nFiles);
-        enableButtons();
+        await enableButtons();
     };
     /**
      * Opens up a folder dialog box to select top folder to process
@@ -122,7 +116,7 @@ class Tags {
         if (newFolder != null) {
             const entries = await photosFolder.getEntries();
             for (let i = 0; (i < entries.length) && (!stopTag); i++) {
-                await progressBar((100 * ++iFiles / nFiles).toString());
+                await progressBar((++iFiles / nFiles).toString());
                 const entry = entries[i];;
 
                 if (skipThisEntry(entry))
@@ -181,7 +175,7 @@ class Tags {
         // start with clean document  
 
         await this.resetHistoryState(this.aDoc);
-        await selectMoveTool();
+        // await selectMoveTool();
         if (this.aDoc.layers.length > 1)
             await executeAsModal(() => this.aDoc.flatten(), { "commandName": "Flattening" });
 
@@ -197,20 +191,20 @@ class Tags {
             // For each person in the picture, make a text layer containing the persons's name on their chest in a TextItem.
 
             for (let i = 0; (i < persons.length) && (!stopTag); i++) {
-                await progressBar(i*100/persons.length);
-     
-                await this.addLayer(gSettings, persons[i], bestRect);
+                await progressBar(i / persons.length);
+
+                await this.addLayer(persons[i], bestRect);
             }
 
             // squash all the artlayers into one "FaceTags" layer
 
             if (gSettings.merge)
-                await executeAsModal(() => { return faceTagsGroup.merge() }, { commandName: "AddingLayer" });
+                await executeAsModal(() => faceTagsGroup.merge(), { commandName: "AddingLayer" });
 
             // apply backdrop effects
 
             if (gSettings.backStroke)
-                await setOutsideStroke(gSettings);
+                await setOutsideStroke();
 
             // convert to portrait format image
 
@@ -222,35 +216,33 @@ class Tags {
 
     /**
      * make a new text layer for a person, wraps layer addition to make it run modal
-     * @param {*} gSettings dictionary containing global settings
      * @param {*} person {personName, x, y, w, h}
      * @param {*} bestRect {w,h} face rectangle to be used for placing the text
      * 
      */
-    async addLayer(gSettings, person, bestRect) {
+    async addLayer(person, bestRect) {
 
-        await executeAsModal(() => this.addLayer_actn(gSettings, person, bestRect), { "commandName": "Adding a layer for each person." });
+        await executeAsModal(() => this.addLayer_actn(person, bestRect), { "commandName": "Adding a layer for each person." });
     };
 
     /**
      * make a new text layer for a person
-     * @param {*} gSettings dictionary containing global settings
      * @param {*} person {personName, x, y, w, h}
      * @param {*} bestRect {w,h} face rectangle to be used for placing the text
      */
-    async addLayer_actn(gSettings, person, bestRect) {
+    async addLayer_actn(person, bestRect) {
 
         let bnds = { "_left": person.x - bestRect.w / 2, "_top": person.y, "_bottom": person.y + bestRect.h, "_right": person.x + bestRect.w / 2 };
         let newLayer = await this.aDoc.createTextLayer({
             "name": person.name,
             bounds: bnds,
-            fontSize: this.calculatePoints(gSettings, bestRect),
+            fontSize: this.calculatePoints(bestRect),
             width: bestRect.w,
             height: bestRect.h
         });
         //   newLayer.textItem.characterStyle.size = this.calculatePoints(gSettings, bestRect); // zeros the bounds       
         //   newLayer.bounds = bnds;
-        newLayer.textItem.contents = this.justifyText(gSettings, person.name);
+        newLayer.textItem.contents = this.justifyText(person.name);
         newLayer.textItem.textClickPoint = { "x": person.x, "y": person.y };
         newLayer.textItem.paragraphStyle.justification = constants.Justification.CENTER;
         newLayer.textItem.characterStyle.fauxBold = true;
@@ -398,11 +390,10 @@ class Tags {
 
     /**
      * calculate the points in pixels
-     * @param {*} gSettings global settings
      * @param {*} bestRect {width, height}
      * @returns pixels to be used in font size
      */
-    calculatePoints(gSettings, bestRect) {
+    calculatePoints(bestRect) {
         const inchesPerRectangle = bestRect.w / this.aDoc.resolution;
         const points1Char = 72 * inchesPerRectangle; // a single character across the rectangle
         const pointsNcharacters = points1Char / gSettings.charsPerFace;
@@ -421,11 +412,10 @@ class Tags {
     /**
      * break up long names so they do not overlay each other
      * 
-     * @param {*} gSettings dictionary containing global settings
      * @param {*} text string containing the text to justify
      * @returns string containing lines of text separated by returns
      */
-    justifyText(gSettings, text) {
+    justifyText(text) {
         let justified = text.split(" ");                        // separate individual words
         for (let i = 0; i < justified.length - 1; i++) {
             if ((justified[i].length + justified[i + 1].length) < gSettings.charsPerFace) {

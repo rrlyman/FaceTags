@@ -4,8 +4,6 @@ const { entrypoints, xmp } = require("uxp");
 const xmpEntry = require('uxp').storage.Entry;
 const xmpConstants = require('uxp').xmp.XMPConst;
 const fs = require('uxp').storage.localFileSystem;
-
-// const core = require('photoshop').core;
 const { core, executeAsModal } = require("photoshop").core;
 const SolidColor = require("photoshop").app.SolidColor;
 const { app, constants } = require("photoshop");
@@ -54,29 +52,6 @@ elements.forEach((element) => {
         else
             notRunningList.push(element.id);
     }
-
-    /*     // restore persistent data and default
-        // set the value into the element
-        // register event
-        
-        switch (element.tagName) {
-            case "sp-slider":
-                switch (element.id) {
-                    case 
-                }
-                break;
-            case "sp-picker":
-            case "sp-menu":
-            case "sp-checkbox":
-            case "sp-button":
-            case "sp-divider":
-            case "sp-textField":
-            case "sp-radio":
-            case "sp-radiogroup":
-            case "sp-progressbar":
-            case "sp-tab-page":
-            default:
-        }*/
 });
 
 
@@ -111,44 +86,20 @@ document.getElementById("fullPhoto").checked = gSettings.fullPhoto ? 1 : 0;
 document.getElementById("outputMode").value = gSettings.outputMode;
 document.getElementById("outputMode2").value = gSettings.outputMode;
 document.getElementById("keywordDropDown").value = filterKeyword;
-
 document.getElementById("daysSlider").value = sliderFromVal(gSettings.days, limits.daysSlider);
 document.getElementById("days").value = gSettings.days.toFixed(2);
-
 document.getElementById("vertDisplacementSlider").value = sliderFromVal(gSettings.vertDisplacement, limits.vertDisplacementSlider);
 document.getElementById("vertDisplacement").value = gSettings.vertDisplacement.toFixed(2);
-
 document.getElementById("fontSizeSlider").value = sliderFromVal(gSettings.fontSize, limits.fontSizeSlider);
 document.getElementById("fontSize").value = gSettings.fontSize.toFixed(2);
-
 document.getElementById("gifSizeSlider").value = sliderFromVal(gSettings.gifSize, limits.gifSizeSlider);
 document.getElementById("gifSize").value = gSettings.gifSize.toFixed(0);
-
 document.getElementById("gifSpeedSlider").value = sliderFromVal(gSettings.gifSpeed, limits.gifSpeedSlider);
 document.getElementById("gifSpeed").value = gSettings.gifSpeed.toFixed(2);
 enableButtons();
 setOutputModeChecked();
 
-/* // attach event listeners for tabs
-Array.from(document.querySelectorAll(".sp-tab")).forEach(theTab => {
-    theTab.onclick = () => {
-      localStorage.setItem("currentTab", theTab.getAttribute("id"));
-      Array.from(document.querySelectorAll(".sp-tab")).forEach(aTab => {
-        if (aTab.getAttribute("id") === theTab.getAttribute("id")) {
-          aTab.classList.add("selected");
-        } else {
-          aTab.classList.remove("selected");
-        }
-      });
-      Array.from(document.querySelectorAll(".sp-tab-page")).forEach(tabPage => {
-        if (tabPage.getAttribute("id").startsWith(theTab.getAttribute("id"))) {
-          tabPage.classList.add("visible");
-        } else {
-          tabPage.classList.remove("visible");
-        }
-      });
-    }
-  }); */
+
 // ##############################  Register Event Listeners  ##################################
 
 document.getElementById("tagRefreshBtn").addEventListener("click", () => {
@@ -193,7 +144,7 @@ async function outputModeEvent(evt) {
     setOutputModeChecked();
     if (gSettings.outputMode < 2)
         tags.tagSingleFile();
-}
+};
 document.getElementById("outputMode").addEventListener("change", evt => outputModeEvent(evt));
 document.getElementById("outputMode2").addEventListener("change", evt => outputModeEvent(evt));
 document.getElementById("daysSlider").addEventListener("change", evt => {
@@ -286,7 +237,7 @@ function checkValid(condition, textBoxId) {
         document.getElementById(textBoxId).removeAttribute("valid");
     }
     return condition;
-}
+};
 /**
  * 
  * @param {str} str Set the element with ID == str to enabled  
@@ -311,10 +262,9 @@ async function enableButtons() {
     runningList.forEach((btn) => disableButton(btn));
     document.getElementById("status").innerHTML = "";
     document.getElementById("status2").innerHTML = "";
-
     stopTag = false;
     await progressBar(0);
-}
+};
 /**
 *  Set all the buttons in the notRunningList to disabled'
  * Set all the buttons in the runningList to enabled.
@@ -328,7 +278,7 @@ async function disableButtons(str) {
     document.getElementById("status2").innerHTML = str;
     await progressBar(0);
     stopTag = false;
-}
+};
 
 /**
  * Given a value, compute a slider (0,100) setting from the value
@@ -365,20 +315,19 @@ function setOutputModeChecked() {
     document.getElementById("gifs").className = gSettings.outputMode == 2 ? "sp-tab-page visible" : "sp-tab-page ";
 };
 
-/** set the value of the progress bar slider, 0 = left, 100 = right
+/** set the value of the progress bar slider, 0 = left, 1 = right
  * 
  * @param {*} val 
  */
+var lastProgressVal = 0;
 async function progressBar(val) {
-    var lastVal = 0;
-    if (val === lastVal) return; // limit number of calls and timeouts
-    lastVal = val;
-    document.getElementById("progressBar").value = val;
-    document.getElementById("progressBar2").value = val;
-
-
-    await new Promise(r => setTimeout(r, 10));    // a slight break is need to draw the progressbar  
-
-}
+    const newVal = val.toFixed(2);  // make 100 intervals along the bar
+    if (newVal != lastProgressVal) {  // omit delay, if no redraw is needed
+        lastProgressVal = newVal;
+        document.getElementById("progressBar").value = newVal;
+        document.getElementById("progressBar2").value = newVal;
+        await new Promise(r => setTimeout(r, 10));    // a slight break is need to draw the progressbar  
+    }
+};
 
 

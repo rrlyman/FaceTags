@@ -200,7 +200,7 @@ class Gifs {
       let nPersons = Object.keys(filteredDict).length;
 
       for (let personKey in filteredDict) {
-         await progressBar((100 * iPerson++ / nPersons).toString());
+         await progressBar((iPerson++ / nPersons).toString());
 
          if (stopTag)
             break;
@@ -288,7 +288,7 @@ class Gifs {
       const entries = await rootFolder.getEntries();
       for (let i = 0; (i < entries.length) && (!stopTag); i++) {
          const entry = entries[i];;
-         await progressBar((100 * ++this.iFiles / this.nFiles).toString());
+         await progressBar( ++this.iFiles / this.nFiles);
 
          if (skipThisEntry(entry))
             continue;
