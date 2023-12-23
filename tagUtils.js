@@ -28,29 +28,29 @@ function skipThisEntry(entry) {
     return (!legalType) || illegalName;
 };
 
-    /**
-     * Determine the suffix of the labeledDirectory folder by finding previous versions and adding 1 to the _n suffix of the folder name.
-     */
-    /**
-     * 
-     * @param {*} ents List of files and folders of the top level folder 
-     * @returns The name of the labeledDirectory top level folder
-     */
-    function getFaceTagsTreeName(originalName, ents, suffix) {
-        let iMax = 0;
-        let targetFolder = originalName + suffix;
-        for (let i1 = 0; i1 < ents.length; i1++) {
-            if (ents[i1].name.toLowerCase().startsWith(targetFolder.toLowerCase())) {
-                let results = ents[i1].name.split("_");
-                if (results.length > 1) {
-                    let x = Number(results.pop())
-                    if (x > iMax) iMax = x;
-                }
+/**
+ * Determine the suffix of the labeledDirectory folder by finding previous versions and adding 1 to the _n suffix of the folder name.
+ */
+/**
+ * 
+ * @param {*} ents List of files and folders of the top level folder 
+ * @returns The name of the labeledDirectory top level folder
+ */
+function getFaceTagsTreeName(originalName, ents, suffix) {
+    let iMax = 0;
+    let targetFolder = originalName + suffix;
+    for (let i1 = 0; i1 < ents.length; i1++) {
+        if (ents[i1].name.toLowerCase().startsWith(targetFolder.toLowerCase())) {
+            let results = ents[i1].name.split("_");
+            if (results.length > 1) {
+                let x = Number(results.pop())
+                if (x > iMax) iMax = x;
             }
         }
-        iMax++;
-        return targetFolder + "_" + iMax.toString();
     }
+    iMax++;
+    return targetFolder + "_" + iMax.toString();
+}
 
 /**for the progress bar, get an overall file ocount.
  * 
@@ -70,6 +70,7 @@ async function countFiles(folder) {
     }
     return iCount;
 }
+
 
 
 module.exports = {

@@ -252,6 +252,10 @@ function enableButton(str) {
 function disableButton(str) {
     document.getElementById(str).setAttribute("disabled", "true");
 };
+function setStatus(str) {
+    document.getElementById("status").innerHTML = str;
+    document.getElementById("status2").innerHTML = str;
+}
 /***
  * Set all the buttons in the notRunningList to enabled.
  * Set all the buttons in the runningList to disabled.
@@ -260,10 +264,9 @@ function disableButton(str) {
 async function enableButtons() {
     notRunningList.forEach((btn) => enableButton(btn));
     runningList.forEach((btn) => disableButton(btn));
-    document.getElementById("status").innerHTML = "";
-    document.getElementById("status2").innerHTML = "";
-    stopTag = false;
-    await progressBar(0);
+    setStatus("");
+    //  stopTag = false;
+    await progressbar.setVal(0);
 };
 /**
 *  Set all the buttons in the notRunningList to disabled'
@@ -274,9 +277,8 @@ async function enableButtons() {
 async function disableButtons(str) {
     notRunningList.forEach((btn) => disableButton(btn));
     runningList.forEach((btn) => enableButton(btn));
-    document.getElementById("status").innerHTML = str;
-    document.getElementById("status2").innerHTML = str;
-    await progressBar(0);
+    setStatus(str);
+    await progressbar.setVal(0);
     stopTag = false;
 };
 
@@ -315,19 +317,42 @@ function setOutputModeChecked() {
     document.getElementById("gifs").className = gSettings.outputMode == 2 ? "sp-tab-page visible" : "sp-tab-page ";
 };
 
-/** set the value of the progress bar slider, 0 = left, 1 = right
- * 
- * @param {*} val 
- */
-var lastProgressVal = 0;
-async function progressBar(val) {
-    const newVal = val.toFixed(2);  // make 100 intervals along the bar
-    if (newVal != lastProgressVal) {  // omit delay, if no redraw is needed
-        lastProgressVal = newVal;
-        document.getElementById("progressBar").value = newVal;
-        document.getElementById("progressBar2").value = newVal;
-        await new Promise(r => setTimeout(r, 10));    // a slight break is need to draw the progressbar  
+progressbar = {
+    lastProgressVal: 0,
+    iVal: 0,
+    nTotal: 0,
+    async incVal() { await this.setVal(this.iVal + 1) },
+    async setVal(val) {
+        this.iVal = val;
+        const newVal = (val / this.nTotal).toFixed(2);  // make 100 intervals along the bar
+        if (newVal != this.lastProgressVal) {  // omit delay, if no redraw is needed
+            this.lastProgressVal = newVal;
+            document.getElementById("progressBar").value = newVal;
+            document.getElementById("progressBar2").value = newVal;
+            await new Promise(r => setTimeout(r, 10));    // a slight break is need to draw the progressbar  
+        }
     }
+}
+
+
+/** replacement for executeAsModal that catches errors.
+ * 
+ * @param {*} x1 anonymous function to be called in excuteAsModel, parameters are (executionContect, description)
+ * @param {*} x2 a dictionary containing "commandName"
+ * @returns 
+ */
+async function xModal(x1, x2) {
+    try {
+        let p1 = await executeAsModal(x1, x2);
+        return  p1;
+    } catch (e) {
+        // find programming errors and the missing document when the windows minimize button is used.
+        // alert(e + JSON.stringify(x2));
+        //stopTag = true;
+        return null;
+    }
+
 };
+
 
 

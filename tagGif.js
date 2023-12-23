@@ -21,22 +21,8 @@ class Gifs {
        * e.g {subject: [personRick, personBob]}
        * */
       this.subjectDict = {};   // keys = subjects that are not person names, entries = person names   
-
-      this.iFiles = 0;
-      this.nFiles = 0;
       this.originalPhotosFolder = null;  // if not null,  then an index has been built
    }
-
-   // checkKeywords() {
-   //    for (let key in this.subjectDict) {
-   //       for (let n = 0; n < this.subjectDict[key].length; n++) {
-   //          if (this.personsDict[key] != null) {
-   //             alert(" bad keyword " + key + " in file " + personIndex[key].entry.name);
-   //             //this.subjectDict[key][n] = this.subjectDict[key][n] + this.personsDict[key].entry.name;
-   //          }
-   //       }
-   //    }
-   // }
 
    /**
     * Opens up a folder dialog box to select top folder to process
@@ -53,7 +39,7 @@ class Gifs {
       if (this.originalPhotosFolder != null) {  // null if user cancels dialog              
 
          // gather all the years of the each person
-         this.nFiles = await countFiles(this.originalPhotosFolder);
+         progressbar.nTotal = await countFiles(this.originalPhotosFolder);
          await disableButtons("Creating an Index");  // only enable the Cancel button 
          this.personsDict = {};  // keys = person names, entries = rectange definitions and subjects
          this.subjectDict = {};   // keys = subjects, entries = person names
@@ -101,24 +87,6 @@ class Gifs {
          await enableButtons();
       }
    };
-
-   /* TBD
-   Use the entire photo.  
-      TAGS The text is all the keywords found on that photo. The entire photo is always used. 
-          Non-person keywords will show up as a title at the bottom
-      GIFS The entire photo is placed in the frame.
-   Do not use the entire photo
-      TAGS Each face rectangle is indiviually tagged. The entire photo is always used. 
-         Non-person keywords are not shown
-      GIFS The entire photo is placed in the frame.
-   Use all photos whe selected people(s) keywords have at least one occurance of a non people keyword
-      TAGS e.g. all memember of the "UHS Seniors" will be labeled anywhere in the entire photo tree
-      GIFS Make GIFs out of all people who have a selected label anywhere in the entire photo tree
-   Use only photos that have the selected keywords
-      TAGs, only label photos that exactly match the keywords selected
-      GIFs, only GIF photos that exactly match the keywords selected (this makes a slideshow out of keyworded entries) which is a useful feature)
-   */
-
 
    /** If the selected filterKeyword from the drop box is "" then use the this.personsDict as the source of the names to GIF
     * If the selected filterKeyword is in the this.subjectDict, the use all of the names for filterKeyword in the this.subjectDict.
@@ -196,22 +164,22 @@ class Gifs {
 
       // go through all the people that were found and make a GIF for each one.
 
-      let iPerson = 0;
-      let nPersons = Object.keys(filteredDict).length;
+      progressbar.nTotal = Object.keys(filteredDict).length;
 
       for (let personKey in filteredDict) {
-         await progressBar((iPerson++ / nPersons).toString());
+         await progressbar.incVal();
 
          if (stopTag)
             break;
          const dpi = 72;
-         let targetDoc = await executeAsModal(() => app.createDocument({
+         let targetDoc = await xModal(() => app.createDocument({
             width: gSettings.gifSize,
             height: gSettings.gifSize,
             resolution: dpi,
             fill: "transparent"
 
-         }), { "commandName": "Make target" });
+         }), { "commandName": "Create Target Document" });
+
 
          // For each person, there was an entry, one per period.
          // Go through the periods and make a frame in the GIF for each period
@@ -225,17 +193,16 @@ class Gifs {
 
             // make the source image the same size as the gif
             let person = filteredDict[personKey][msKeys[i]];
-            let sourceDoc = await executeAsModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
-            await executeAsModal(() => sourceDoc.flatten(), { "commandName": "Flattening" });
+            let sourceDoc = await xModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
+            await xModal(() => sourceDoc.flatten(), { "commandName": "Flattening" });
 
             //  With fullPhoto enabled, create a document where the biggest dimension is equal to the gifSize
 
             if (gSettings.fullPhoto) {
                let biggestDimension = Math.max(sourceDoc.width, sourceDoc.height);
-               await executeAsModal(() => sourceDoc.resizeImage(parseInt(gSettings.gifSize * sourceDoc.width / biggestDimension),
-                  parseInt(gSettings.gifSize * sourceDoc.height / biggestDimension), dpi), { "commandName": "Resize batched File" });
-               // await executeAsModal(() => sourceDoc.resizeCanvas(gSettings.gifSize, gSettings.gifSize), { "commandName": "Resize batched File" });
-
+               let x = parseInt(gSettings.gifSize * sourceDoc.width / biggestDimension);
+               let y = parseInt(gSettings.gifSize * sourceDoc.height / biggestDimension)
+               await xModal(() => sourceDoc.resizeImage(x, y, dpi), { "commandName": "Resize batched File" });
             } else {
 
                // With the full mode off, create a square, twice as large as the person's rectangle,  that can be contained in the document 
@@ -250,29 +217,42 @@ class Gifs {
                const moveRight = Math.min(playRight, Math.max(0, person.x - centerX));
                const moveDown = Math.min(playDown, Math.max(0, person.y - centerY));
                let bounds = { left: moveRight, top: moveDown, bottom: moveDown + s, right: moveRight + s };
-               await executeAsModal(() => sourceDoc.crop(bounds), { "commandName": "Crop File" });
-               await executeAsModal(() => sourceDoc.resizeImage(gSettings.gifSize, gSettings.gifSize, dpi), { "commandName": "Resize batched File" });
+               await xModal(() => sourceDoc.crop(bounds), { "commandName": "Crop File" });
+               await xModal(() => sourceDoc.resizeImage(gSettings.gifSize, gSettings.gifSize, dpi), { "commandName": "Resize batched File" });
             }
 
-            await executeAsModal(() => sourceDoc.layers[0].duplicate(targetDoc), { "commandName": "Make new layer" });
-            await executeAsModal(() => sourceDoc.closeWithoutSaving(), { "commandName": "Closing" });
-            sourceDoc = null;
+            if (await xModal(() => sourceDoc.layers[0].duplicate(targetDoc, constants.ElementPlacement.PLACEATBEGINNING),
+               { "commandName": "Duplicating a layer" }) == null) {
+                  targetDoc = await xModal(() => app.createDocument({
+                     width: gSettings.gifSize,
+                     height: gSettings.gifSize,
+                     resolution: dpi,
+                     fill: "transparent"         
+                  }), { "commandName": "Create Target Document" });
+               // workaround for Photoshop bug when using the minimize button and hovering over taskbar thumbnail
+               await new Promise(r => setTimeout(r, 1000));
+               if (await xModal(() => sourceDoc.layers[0].duplicate(targetDoc, constants.ElementPlacement.PLACEATBEGINNING),
+                  { "commandName": "Duplicating a layer" }) == null) {
+                  alert("missing document");
+                  break;
+               }
+            }
+            await xModal(() => sourceDoc.closeWithoutSaving(), { "commandName": "closeWithoutSaving" });
 
             await new Promise(r => setTimeout(r, 100));    // required to give time to process Cancel Button
          }
 
          // turn the layers into a gif and save it. If there are less than 2 layers it seems to be a special case.
 
-         if (targetDoc.layers.length > 2) {  
-            await executeAsModal(() => targetDoc.layers.getByName("Layer 1").delete(), { "commandName": "Removing transparent layer" });
+         if (targetDoc.layers.length > 2) {
+            await xModal(() => targetDoc.layers.getByName("Layer 1").delete(), { "commandName": "Removing transparent layer" });
             await this.makeGif();
          }
-            let saveEntry = await gifFolder.createFile(personKey + '.gif');
-            await executeAsModal(() => targetDoc.saveAs.gif(saveEntry), { "commandName": "Saving" });
+         let saveEntry = await gifFolder.createFile(personKey + '.gif');
+         await xModal(() => targetDoc.saveAs.gif(saveEntry), { "commandName": "saveAs.gif" });
 
-         await executeAsModal(() => targetDoc.closeWithoutSaving(), { "commandName": "Closing" });
+         await xModal(() => targetDoc.closeWithoutSaving(), { "commandName": "closeWithoutSaving" });
       }
-      await progressBar(0);
       await enableButtons();
    };
 
@@ -288,7 +268,7 @@ class Gifs {
       const entries = await rootFolder.getEntries();
       for (let i = 0; (i < entries.length) && (!stopTag); i++) {
          const entry = entries[i];;
-         await progressBar( ++this.iFiles / this.nFiles);
+         await progressbar.incVal();
 
          if (skipThisEntry(entry))
             continue;
@@ -385,7 +365,7 @@ class Gifs {
     * Grabs all the layers and puts them into a single GIF, with slightly random speed settings.
     */
    async makeGif() {
-      await executeAsModal(() => this.makeGif_actn(), { "commandName": "Action Commands" });
+      await xModal(() => this.makeGif_actn(), { "commandName": "Make GIFs" });
    }
 }
 module.exports = {

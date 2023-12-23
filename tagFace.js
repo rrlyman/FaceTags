@@ -9,8 +9,6 @@ class Tags {
     constructor() {
         this.originalPhotosFolder = null;   // if not null,  then an index has already been built
         this.dontAsk = false;               // puts up only one alert for missing metadata when loading a bunch of files
-        this.iFiles = 0;                    // progress bar incrementer
-        this.nFiles = 0;                    // number of files to be analyzed or progressbar display
         this.aDoc = app.activeDocument;     // currently active document
     }
     /** face tag a file
@@ -25,9 +23,9 @@ class Tags {
         let persons = readPersonsFromMetadata(entry)[0];
         if (persons.length == 0)
             return false;
-        this.aDoc = await executeAsModal(() => app.open(entry), { "commandName": "Opening batched File" });
+        this.aDoc = await xModal(() => app.open(entry), { "commandName": "Opening batched File" });
         await this.faceTagTheImage(persons);
-      
+
         await new Promise(r => setTimeout(r, 100));    // required to give time process Cancel Button  
         return true;
     }
@@ -54,14 +52,15 @@ class Tags {
      * the photos remain loaded in Photoshop
      */
     async tagMultiFiles() {
-   
+
         await disableButtons("Tagging Files");
         // Put up a dialog box, and get a list of file(s) to face tag.
         const files = await fs.getFileForOpening({ allowMultiple: true });
 
         this.dontAsk = false; // puts up only one alert for missing metadata when loading a bunch of files
-
+        progressbar.nTotal = files.length;
         for (let i = 0; i < files.length && (!stopTag); i++) {
+            await progressbar.incVal();
             if (! await this.openAndTagFileFromDisk(files[i]))
                 continue;
         }
@@ -78,20 +77,23 @@ class Tags {
      */
     async tagBatchFiles() {
         this.aDoc = app.activeDocument;
-        if (originalPhotosFolder == null) {  // null is the initial call
-            originalPhotosFolder = await fs.getFolder();
-            if (originalPhotosFolder == null) {  // null if user cancels dialog              
-                return;
-            }
+
+        this.originalPhotosFolder = await fs.getFolder();
+        if (this.originalPhotosFolder == null) {  // null if user cancels dialog              
+            return;
         }
-        const nFiles = await countFiles(originalPhotosFolder);
+
         this.dontAsk = true;  // omit no perssons found message
         await disableButtons("Processing Folders");  // only enable the Cancel button  
 
         // create the top level labeledDirectoryFolder
-        const ents = await originalPhotosFolder.getEntries();
-        newFolder = await originalPhotosFolder.createFolder(getFaceTagsTreeName(originalPhotosFolder.name, ents, labeledSuffix));
-        recurseBatchFiles(originalPhotosFolder, newFolder, 0, nFiles);
+        const ents = await this.originalPhotosFolder.getEntries();
+        const newFolderName = getFaceTagsTreeName(this.originalPhotosFolder.name, ents, labeledSuffix);
+        const newFolder = await this.originalPhotosFolder.createFolder(newFolderName);
+
+        progressbar.nTotal = await countFiles(this.originalPhotosFolder);
+        await disableButtons("Tagging files");  // only enable the Cancel button 
+        await this.recurseBatchFiles(this.originalPhotosFolder, newFolder);
         await enableButtons();
     };
     /**
@@ -116,7 +118,7 @@ class Tags {
         if (newFolder != null) {
             const entries = await photosFolder.getEntries();
             for (let i = 0; (i < entries.length) && (!stopTag); i++) {
-                await progressBar((++iFiles / nFiles).toString());
+                await progressbar.incVal();
                 const entry = entries[i];;
 
                 if (skipThisEntry(entry))
@@ -125,7 +127,7 @@ class Tags {
                 // recurse folders
 
                 if (entry.isFolder) {
-                    await recurseBatchFiles(entry, newFolder, iFiles, nFiles);
+                    await this.recurseBatchFiles(entry, newFolder);
                 } else {
 
                     ////////////////////     PAYLOAD START     /////////////////////      
@@ -135,11 +137,11 @@ class Tags {
                         continue;
 
                     // and save it
-                    await executeAsModal(() => this.aDoc.flatten(), { "commandName": "Flattening" });   // required to save png 
+                    await xModal(() => this.aDoc.flatten(), { "commandName": "Flattening" });   // required to save png 
                     let fname = this.aDoc.name.replace(/\.[^/.]+$/, "") + labeledSuffix + '.jpg';
                     let saveEntry = await newFolder.createFile(fname); // similar name as original but store on tagged tree.
-                    await executeAsModal(() => this.aDoc.saveAs.jpg(saveEntry), { "commandName": "Saving" });
-                    await executeAsModal(() => this.aDoc.closeWithoutSaving(), { "commandName": "Closing" });
+                    await xModal(() => this.aDoc.saveAs.jpg(saveEntry), { "commandName": "saveAs.jpg" });
+                    await xModal(() => this.aDoc.closeWithoutSaving(), { "commandName": "closeWithoutSaving" });
 
                     ////////////////////     PAYLOAD END     /////////////////////      
 
@@ -177,7 +179,7 @@ class Tags {
         await this.resetHistoryState(this.aDoc);
         // await selectMoveTool();
         if (this.aDoc.layers.length > 1)
-            await executeAsModal(() => this.aDoc.flatten(), { "commandName": "Flattening" });
+            await xModal(() => this.aDoc.flatten(), { "commandName": "Flattening" });
 
         //  find a common face rectangle size that doesn't intersect the other face rectangles too much, and move the rectangle below the chin
 
@@ -186,20 +188,18 @@ class Tags {
 
             // Put all layers under a group layer, "FaceTags"
 
-            let faceTagsGroup = await executeAsModal(() => { return this.aDoc.createLayerGroup({ name: "FaceTags" }) });
+            let faceTagsGroup = await executeAsModal(() => { return this.aDoc.createLayerGroup({ name: "FaceTags" }) }, { commandName: "AddingLayer" });
 
             // For each person in the picture, make a text layer containing the persons's name on their chest in a TextItem.
 
             for (let i = 0; (i < persons.length) && (!stopTag); i++) {
-                await progressBar(i / persons.length);
-
-                await this.addLayer(persons[i], bestRect);
+                       await this.addLayer(persons[i], bestRect);
             }
 
             // squash all the artlayers into one "FaceTags" layer
 
             if (gSettings.merge)
-                await executeAsModal(() => faceTagsGroup.merge(), { commandName: "AddingLayer" });
+                await xModal(() => faceTagsGroup.merge(), { commandName: "AddingLayer" });
 
             // apply backdrop effects
 
@@ -210,7 +210,6 @@ class Tags {
 
             if (gSettings.outputMode == 1)
                 await makeAPortrait(this.aDoc);
-
         }
     };
 
@@ -221,8 +220,7 @@ class Tags {
      * 
      */
     async addLayer(person, bestRect) {
-
-        await executeAsModal(() => this.addLayer_actn(person, bestRect), { "commandName": "Adding a layer for each person." });
+        await xModal(() => this.addLayer_actn(person, bestRect), { "commandName": "Adding a layer for each person." });
     };
 
     /**
@@ -254,15 +252,13 @@ class Tags {
      */
     async resetHistoryState() {
 
-        await executeAsModal(() => {
+        await xModal(() => {
             if (this.aDoc.historyStates.length > 0) {
                 this.aDoc.activeHistoryState = this.aDoc.historyStates[0];
             }
         }
             , { "commandName": "Resetting History" });
-
     };
-
 
 
     /** 
