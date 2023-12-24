@@ -28,7 +28,6 @@
       <sp-checkbox id="backStroke" size="s">Text Border</sp-checkbox>
     </div>
 
-
     <p>
       <sp-label size="s" for="vertDisplacement">Vertical Position</sp-label>
       <sp-label size="s" for="fontSize">Font Size</sp-label>
@@ -40,13 +39,11 @@
     </p>
 
     <p>
-      <sp-slider id="vertDisplacementSlider" width="45%"></sp-slider>
-      <sp-slider id="fontSizeSlider" width="45%"></sp-slider>
+      <sp-slider id="vertDisplacementSlider" width="45%" min="-3" max="3" step=".06"></sp-slider>
+      <sp-slider id="fontSizeSlider" width="45%" min=".1" max="3" step=".029"></sp-slider>
     </p>
 
-
     <sp-divider size="l"></sp-divider>
-
 
     <div class="btn">
       <sp-button id="tagRefreshBtn" size="s"> Refresh</sp-button>
@@ -101,11 +98,11 @@
         <sp-textfield size="s" id="gifSpeed"></sp-textfield>
         <sp-textfield size="s" id="days"></sp-textfield>
       </p>
-
+ 
       <p>
-        <sp-slider id="gifSizeSlider"></sp-slider>
-        <sp-slider id="gifSpeedSlider"></sp-slider>
-        <sp-slider id="daysSlider"></sp-slider>
+        <sp-slider id="gifSizeSlider" min="10" max="5000" step="40.9"></sp-slider>
+        <sp-slider id="gifSpeedSlider" min="0" max ="20" step=".2"></sp-slider>
+        <sp-slider id="daysSlider" min="0" max="1000" step="10"></sp-slider>
       </p>
 
       <sp-divider size="l"></sp-divider>

@@ -16,22 +16,12 @@ const { Gifs } = require("./tagGif.js");
 
 // ################################  GLOBAL VARIABLES ##################################
 
-let stopTag = false;
+let stopFlag = false;
 const gifSuffix = "-gifs";
 const labeledSuffix = "-labeled";
 const gifs = new Gifs();
 const tags = new Tags();
 let filterKeyword = "";
-
-/** @type limits are the bounds, left and right for the sliders. e.g. gifSize minR 10 means that a slider all the way to the left corresponds to a 10 gifSize.
-*/
-const limits = {
-    gifSizeSlider: { minR: 10, maxR: 5000 },
-    fontSizeSlider: { minR: .1, maxR: 3 },
-    gifSpeedSlider: { minR: 0, maxR: 20 },
-    vertDisplacementSlider: { minR: -3, maxR: 3 },
-    daysSlider: { minR: 0, maxR: 1000 },
-}
 
 const dialogs = makeHelpDialogs();   // help dialogs
 
@@ -53,7 +43,6 @@ elements.forEach((element) => {
             notRunningList.push(element.id);
     }
 });
-
 
 console.log("runningList " + JSON.stringify(runningList));
 console.log("notRunningList " + JSON.stringify(notRunningList));
@@ -80,21 +69,23 @@ gSettings.backColor.rgb.hexValue = localStorage.getItem("backColor") || "0x0000f
 gSettings.charsPerFace = 10;  // not currently adjustable
 console.log("gSettings " + JSON.stringify(gSettings));
 
+// set all the visual elements to the gSettings values
+
 document.getElementById("merge").checked = gSettings.merge ? 1 : 0;
 document.getElementById("backStroke").checked = gSettings.backStroke ? 1 : 0;
 document.getElementById("fullPhoto").checked = gSettings.fullPhoto ? 1 : 0;
 document.getElementById("outputMode").value = gSettings.outputMode;
 document.getElementById("outputMode2").value = gSettings.outputMode;
 document.getElementById("keywordDropDown").value = filterKeyword;
-document.getElementById("daysSlider").value = sliderFromVal(gSettings.days, limits.daysSlider);
+document.getElementById("daysSlider").value = gSettings.days;
 document.getElementById("days").value = gSettings.days.toFixed(2);
-document.getElementById("vertDisplacementSlider").value = sliderFromVal(gSettings.vertDisplacement, limits.vertDisplacementSlider);
+document.getElementById("vertDisplacementSlider").value = gSettings.vertDisplacement;
 document.getElementById("vertDisplacement").value = gSettings.vertDisplacement.toFixed(2);
-document.getElementById("fontSizeSlider").value = sliderFromVal(gSettings.fontSize, limits.fontSizeSlider);
+document.getElementById("fontSizeSlider").value = gSettings.fontSize;
 document.getElementById("fontSize").value = gSettings.fontSize.toFixed(2);
-document.getElementById("gifSizeSlider").value = sliderFromVal(gSettings.gifSize, limits.gifSizeSlider);
+document.getElementById("gifSizeSlider").value = gSettings.gifSize;
 document.getElementById("gifSize").value = gSettings.gifSize.toFixed(0);
-document.getElementById("gifSpeedSlider").value = sliderFromVal(gSettings.gifSpeed, limits.gifSpeedSlider);
+document.getElementById("gifSpeedSlider").value = gSettings.gifSpeed;
 document.getElementById("gifSpeed").value = gSettings.gifSpeed.toFixed(2);
 enableButtons();
 setOutputModeChecked();
@@ -102,27 +93,13 @@ setOutputModeChecked();
 
 // ##############################  Register Event Listeners  ##################################
 
-document.getElementById("tagRefreshBtn").addEventListener("click", () => {
-    tags.tagSingleFile();
-});
-document.getElementById("createIndex").addEventListener("click", () => {
-    gifs.createIndex();
-});
-document.getElementById("btnTagFile").addEventListener("click", () => {
-    tags.tagMultiFiles();
-});
-document.getElementById("btnTagFolder").addEventListener("click", () => {
-    tags.tagBatchFiles();
-});
-document.getElementById("makeGIFs").addEventListener("click", () => {
-    gifs.gifBatchFiles();
-});
-document.getElementById("btnHelp").addEventListener("click", () => {
-    dialogs[0].uxpShowModal();
-});
-document.getElementById("btnHelp2").addEventListener("click", () => {
-    dialogs[5].uxpShowModal();
-});
+document.getElementById("tagRefreshBtn").addEventListener("click", () => { tags.tagSingleFile(); });
+document.getElementById("createIndex").addEventListener("click", () => { gifs.createIndex(); });
+document.getElementById("btnTagFile").addEventListener("click", () => { tags.tagMultiFiles(); });
+document.getElementById("btnTagFolder").addEventListener("click", () => { tags.tagBatchFiles(); });
+document.getElementById("makeGIFs").addEventListener("click", () => { gifs.gifFolder(); });
+document.getElementById("btnHelp").addEventListener("click", () => { dialogs[0].uxpShowModal(); });
+document.getElementById("btnHelp2").addEventListener("click", () => { dialogs[5].uxpShowModal(); });
 document.getElementById("merge").addEventListener("change", evt => {
     gSettings.merge = evt.target.checked;
     localStorage.setItem("merge", gSettings.merge.toString());
@@ -147,41 +124,15 @@ async function outputModeEvent(evt) {
 };
 document.getElementById("outputMode").addEventListener("change", evt => outputModeEvent(evt));
 document.getElementById("outputMode2").addEventListener("change", evt => outputModeEvent(evt));
-document.getElementById("daysSlider").addEventListener("change", evt => {
-    sliderToText(evt.target.value, "days", 2);
-});
-document.getElementById("vertDisplacementSlider").addEventListener("change", evt => {
-    sliderToText(evt.target.value, "vertDisplacement", 2);
-    tags.tagSingleFile();
-});
-document.getElementById("gifSizeSlider").addEventListener("change", evt => {
-    sliderToText(evt.target.value, "gifSize", 0);
-    document.getElementById("gifSize").value = parseInt(document.getElementById("gifSize").value).toString();
-});
-document.getElementById("fontSizeSlider").addEventListener("change", evt => {
-    sliderToText(evt.target.value, "fontSize", 2);
-    tags.tagSingleFile();
-});
-document.getElementById("gifSpeedSlider").addEventListener("change", evt => {
-    sliderToText(evt.target.value, "gifSpeed", 2);
-});
-document.getElementById("vertDisplacement").addEventListener("change", evt => {
-    textToSlider(evt, "vertDisplacement", "vertDisplacementSlider", "vertDisplacement");
-    tags.tagSingleFile();
-});
-document.getElementById("gifSize").addEventListener("change", evt => {
-    textToSlider(evt, "gifSize", "gifSizeSlider", "gifSize");
-});
-document.getElementById("fontSize").addEventListener("change", evt => {
-    textToSlider(evt, "fontSize", "fontSizeSlider", "fontSize");
-    tags.tagSingleFile();
-});
-document.getElementById("gifSpeed").addEventListener("change", evt => {
-    textToSlider(evt, "gifSpeed", "gifSpeedSlider", "gifSpeed");
-});
-document.getElementById("days").addEventListener("change", evt => {
-    textToSlider(evt, "days", "daysSlider", "days");
-});
+
+document.getElementById("vertDisplacement").addEventListener("keydown", evt => { if (evt.key == "Enter") textToSlider(evt, "vertDisplacement") });
+document.getElementById("vertDisplacement").addEventListener("change", evt => { textToSlider(evt, "vertDisplacement") });
+document.getElementById("vertDisplacementSlider").addEventListener("change", evt => { sliderToText(evt, "vertDisplacement", 2); });
+
+document.getElementById("fontSize").addEventListener("change", evt => { textToSlider(evt, "fontSize") });
+document.getElementById("fontSize").addEventListener("keydown", evt => { if (evt.key == "Enter") textToSlider(evt, "fontSize") });
+document.getElementById("fontSizeSlider").addEventListener("change", evt => { sliderToText(evt, "fontSize", 2); });
+
 document.getElementById("dropMenu").addEventListener("change", evt => {
     filterKeyword = evt.target.value;
     document.getElementById("keywordDropDown").value = filterKeyword;
@@ -198,13 +149,27 @@ document.getElementById("backColor").addEventListener("click", evt => {
 });
 async function stopButtonEvent(evt) {
     await enableButtons();
-    stopTag = true;
+    stopFlag = true;
 };
+document.getElementById("days").addEventListener("change", evt => { textToSlider(evt, "days"); });
+document.getElementById("days").addEventListener("keydown", evt => { if (evt.key == "Enter") textToSlider(evt, "days") });
+document.getElementById("daysSlider").addEventListener("change", evt => { sliderToText(evt, "days", 2); });
+
+document.getElementById("gifSpeed").addEventListener("change", evt => { textToSlider(evt, "gifSpeed"); });
+document.getElementById("gifSpeed").addEventListener("keydown", evt => { if (evt.key == "Enter") textToSlider(evt, "gifSpeed") });
+document.getElementById("gifSpeedSlider").addEventListener("change", evt => { sliderToText(evt, "gifSpeed", 2); });
+
+document.getElementById("gifSize").addEventListener("change", evt => { textToSlider(evt, "gifSize"); });
+document.getElementById("gifSize").addEventListener("keydown", evt => { if (evt.key == "Enter") textToSlider(evt, "gifSize") });
+document.getElementById("gifSizeSlider").addEventListener("change", evt => { sliderToText(evt, "gifSize", 0); });
+
 document.getElementById("btnStop").addEventListener("click", evt => stopButtonEvent(evt));
 document.getElementById("btnStop2").addEventListener("click", evt => stopButtonEvent(evt));
 
 
 // ##############################  Utility Functions ##################################
+
+
 
 /** Given an event from a textField, convert that value to a slider position and set into the slider.
  * If the value is outside of the Slider range, set the textField to the "invalid" state.
@@ -214,11 +179,13 @@ document.getElementById("btnStop2").addEventListener("click", evt => stopButtonE
  */
 function textToSlider(evt, textID) {
     const sliderID = textID + "Slider";
-    let v = sliderFromVal(parseFloat(evt.target.value), limits[sliderID]);
-    if (checkValid(v >= 0 && v <= 100, textID)) {
+    let v = parseFloat(evt.target.value);
+    if (checkValid(v >= document.getElementById(sliderID).getAttribute("min") && v <= document.getElementById(sliderID).getAttribute("max"), textID)) {
         gSettings[textID] = parseFloat(evt.target.value);
         document.getElementById(sliderID).value = v;
         localStorage.setItem(textID, gSettings[textID]);
+        if (gSettings.outputMode < 2)
+            tags.tagSingleFile();
     }
 };
 
@@ -265,8 +232,7 @@ async function enableButtons() {
     notRunningList.forEach((btn) => enableButton(btn));
     runningList.forEach((btn) => disableButton(btn));
     setStatus("");
-    //  stopTag = false;
-    await progressbar.setVal(0);
+       await progressbar.setVal(0);
 };
 /**
 *  Set all the buttons in the notRunningList to disabled'
@@ -279,31 +245,22 @@ async function disableButtons(str) {
     runningList.forEach((btn) => enableButton(btn));
     setStatus(str);
     await progressbar.setVal(0);
-    stopTag = false;
+    stopFlag = false;
 };
 
-/**
- * Given a value, compute a slider (0,100) setting from the value
- * @param {*} val 
- * @param {*} valRange 
- * @returns slider number, can be outside of the range
- */
-function sliderFromVal(val, valRange) {
-    return (val - valRange.minR) * 100 / (valRange.maxR - valRange.minR);
-};
-
-/** Convert a slider value to a text value truncated to two decimal places
- * and set the value in the textField
+/** Convert a slider value to a text value truncated to n decimal places
+ * and set the value in the textField.
  *  
- * @param {*} sliderValue 
- * @param {*} textID the string value key in the limits directory that describes the slider right and left bounds
+ * @param {*} evt Event from element
+ * @param {*} textID The base name of the element ID
+ * @param {*} nPlaces  The number of places to show in the textfield
  */
-function sliderToText(sliderValue, textID, nPlaces) {
-    const sliderID = textID + "Slider";
-    let lmts = limits[sliderID];
-    gSettings[textID] = (sliderValue / 100) * (lmts.maxR - lmts.minR) + lmts.minR;
-    document.getElementById(textID).value = gSettings[textID].toFixed(nPlaces); // two decimals
+function sliderToText(evt, textID, nPlaces) {
+    gSettings[textID] = evt.target.value;
+    document.getElementById(textID).value = gSettings[textID].toFixed(nPlaces);
     localStorage.setItem(textID, gSettings[textID]);
+    if (gSettings.outputMode < 2)
+        tags.tagSingleFile();
 };
 
 /** Set the radio buttons to a checked state based on the outputMode setting and show the tag or gif panel elements
@@ -317,11 +274,15 @@ function setOutputModeChecked() {
     document.getElementById("gifs").className = gSettings.outputMode == 2 ? "sp-tab-page visible" : "sp-tab-page ";
 };
 
-progressbar = {
+let progressbar = {
     lastProgressVal: 0,
     iVal: 0,
     nTotal: 0,
     async incVal() { await this.setVal(this.iVal + 1) },
+    /** Fill in the progress bar with a new value;
+     * 
+     * @param {*} val Value to put in the progress bar in the range [0,nTotal]
+     */
     async setVal(val) {
         this.iVal = val;
         const newVal = (val / this.nTotal).toFixed(2);  // make 100 intervals along the bar
@@ -334,7 +295,6 @@ progressbar = {
     }
 }
 
-
 /** replacement for executeAsModal that catches errors.
  * 
  * @param {*} x1 anonymous function to be called in excuteAsModel, parameters are (executionContect, description)
@@ -344,14 +304,13 @@ progressbar = {
 async function xModal(x1, x2) {
     try {
         let p1 = await executeAsModal(x1, x2);
-        return  p1;
+        return p1;
     } catch (e) {
         // find programming errors and the missing document when the windows minimize button is used.
-        // alert(e + JSON.stringify(x2));
-        //stopTag = true;
+        alert(e + JSON.stringify(x2));
+        stopFlag = true;
         return null;
     }
-
 };
 
 

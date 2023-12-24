@@ -61,7 +61,7 @@ async function countFiles(folder) {
     await disableButtons("Counting Files");
     let ents = await folder.getEntries();
     let iCount = 0;
-    for (let i = 0; i < ents.length; i++) {
+    for (let i = 0; i < ents.length && !stopFlag; i++) {
         if (skipThisEntry(ents[i]))
             continue;
         iCount++;

@@ -59,7 +59,7 @@ class Tags {
 
         this.dontAsk = false; // puts up only one alert for missing metadata when loading a bunch of files
         progressbar.nTotal = files.length;
-        for (let i = 0; i < files.length && (!stopTag); i++) {
+        for (let i = 0; i < files.length && (!stopFlag); i++) {
             await progressbar.incVal();
             if (! await this.openAndTagFileFromDisk(files[i]))
                 continue;
@@ -92,8 +92,10 @@ class Tags {
         const newFolder = await this.originalPhotosFolder.createFolder(newFolderName);
 
         progressbar.nTotal = await countFiles(this.originalPhotosFolder);
-        await disableButtons("Tagging files");  // only enable the Cancel button 
-        await this.recurseBatchFiles(this.originalPhotosFolder, newFolder);
+        if (!stopFlag) {
+            await disableButtons("Tagging files");  // only enable the Cancel button 
+            await this.recurseBatchFiles(this.originalPhotosFolder, newFolder);
+        }
         await enableButtons();
     };
     /**
@@ -117,7 +119,7 @@ class Tags {
         // process all the files and folders in the photosFolder
         if (newFolder != null) {
             const entries = await photosFolder.getEntries();
-            for (let i = 0; (i < entries.length) && (!stopTag); i++) {
+            for (let i = 0; (i < entries.length) && (!stopFlag); i++) {
                 await progressbar.incVal();
                 const entry = entries[i];;
 
@@ -192,8 +194,8 @@ class Tags {
 
             // For each person in the picture, make a text layer containing the persons's name on their chest in a TextItem.
 
-            for (let i = 0; (i < persons.length) && (!stopTag); i++) {
-                       await this.addLayer(persons[i], bestRect);
+            for (let i = 0; (i < persons.length) && (!stopFlag); i++) {
+                await this.addLayer(persons[i], bestRect);
             }
 
             // squash all the artlayers into one "FaceTags" layer

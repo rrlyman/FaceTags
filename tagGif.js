@@ -40,49 +40,51 @@ class Gifs {
 
          // gather all the years of the each person
          progressbar.nTotal = await countFiles(this.originalPhotosFolder);
-         await disableButtons("Creating an Index");  // only enable the Cancel button 
-         this.personsDict = {};  // keys = person names, entries = rectange definitions and subjects
-         this.subjectDict = {};   // keys = subjects, entries = person names
+         if (!stopFlag) {
+            await disableButtons("Creating an Index");  // only enable the Cancel button 
+            this.personsDict = {};  // keys = person names, entries = rectange definitions and subjects
+            this.subjectDict = {};   // keys = subjects, entries = person names
 
-         await this.recurseIndex(this.originalPhotosFolder);
+            await this.recurseIndex(this.originalPhotosFolder);
 
-         // check for illegal keywords
-         // checkKeywords();
+            // check for illegal keywords
+            // checkKeywords();
 
-         await disableButtons("Processing Index");
+            await disableButtons("Processing Index");
 
-         // clean out the keyword list on the panel
-         let menu = document.getElementById("dropMenu");
-         while (menu.options.length > 0)
-            menu.options[0].remove();
-         filterKeyword = "";
-         let subjects = Object.keys(this.subjectDict).sort();
+            // clean out the keyword list on the panel
+            let menu = document.getElementById("dropMenu");
+            while (menu.options.length > 0)
+               menu.options[0].remove();
+            filterKeyword = "";
+            let subjects = Object.keys(this.subjectDict).sort();
 
-         // purge the this.subjectDict of any keywords that are also persons
-         // This occurs when there is a person name in a photo that but there is no person rectangle for tem.
-         for (let iSubject in subjects) {
-            if (this.personsDict[subjects[iSubject]] != undefined) {
-               delete this.subjectDict[subjects[iSubject]];
+            // purge the this.subjectDict of any keywords that are also persons
+            // This occurs when there is a person name in a photo that but there is no person rectangle for tem.
+            for (let iSubject in subjects) {
+               if (this.personsDict[subjects[iSubject]] != undefined) {
+                  delete this.subjectDict[subjects[iSubject]];
+               }
             }
-         }
 
-         // sort them so the dropdown is nicely sorted
-         subjects = Object.keys(this.subjectDict).sort();
-         for (let iSubject in subjects) {
-            const item = document.createElement("sp-menu-item");
-            item.textContent = subjects[iSubject];
-            menu.appendChild(item);
-         }
+            // sort them so the dropdown is nicely sorted
+            subjects = Object.keys(this.subjectDict).sort();
+            for (let iSubject in subjects) {
+               const item = document.createElement("sp-menu-item");
+               item.textContent = subjects[iSubject];
+               menu.appendChild(item);
+            }
 
-         menu.appendChild(document.createElement("sp-menu-divider"));
+            menu.appendChild(document.createElement("sp-menu-divider"));
 
-         // now add anyone to the dropdown who has a person rectangle
+            // now add anyone to the dropdown who has a person rectangle
 
-         let personNames = Object.keys(this.personsDict).sort();
-         for (let i = 0; i < personNames.length; i++) {
-            const item = document.createElement("sp-menu-item");
-            item.textContent = personNames[i];
-            menu.appendChild(item);
+            let personNames = Object.keys(this.personsDict).sort();
+            for (let i = 0; i < personNames.length; i++) {
+               const item = document.createElement("sp-menu-item");
+               item.textContent = personNames[i];
+               menu.appendChild(item);
+            }
          }
          await enableButtons();
       }
@@ -146,7 +148,7 @@ class Gifs {
     *  Gif everyone, unless a keyword has been selected in the dropDown menu
     * 
     */
-   async gifBatchFiles() {
+   async gifFolder() {
       // if the index has already been created, then skip index creation
       if (this.originalPhotosFolder == null) {
          await this.createIndex();
@@ -169,16 +171,19 @@ class Gifs {
       for (let personKey in filteredDict) {
          await progressbar.incVal();
 
-         if (stopTag)
+         if (stopFlag)
             break;
          const dpi = 72;
-         let targetDoc = await xModal(() => app.createDocument({
-            width: gSettings.gifSize,
-            height: gSettings.gifSize,
-            resolution: dpi,
-            fill: "transparent"
+         let targetDoc = null;
+         // if the windows is minimized with the minimize button, and the cursor is hovering over the thumbnail in the task bar, the create Document may fail and return null
+         while (targetDoc == null)
+            targetDoc = await xModal(() => app.createDocument({
+               width: gSettings.gifSize,
+               height: gSettings.gifSize,
+               resolution: dpi,
+               fill: "transparent"
 
-         }), { "commandName": "Create Target Document" });
+            }), { "commandName": "Create Target Document" });
 
 
          // For each person, there was an entry, one per period.
@@ -189,7 +194,7 @@ class Gifs {
          let msKeys = Object.keys(filteredDict[personKey]).sort(function (a, b) { return a - b; }
          );
 
-         for (let i = 0; i < msKeys.length && !stopTag; i++) {
+         for (let i = 0; i < msKeys.length && !stopFlag; i++) {
 
             // make the source image the same size as the gif
             let person = filteredDict[personKey][msKeys[i]];
@@ -221,24 +226,10 @@ class Gifs {
                await xModal(() => sourceDoc.resizeImage(gSettings.gifSize, gSettings.gifSize, dpi), { "commandName": "Resize batched File" });
             }
 
-            if (await xModal(() => sourceDoc.layers[0].duplicate(targetDoc, constants.ElementPlacement.PLACEATBEGINNING),
-               { "commandName": "Duplicating a layer" }) == null) {
-                  targetDoc = await xModal(() => app.createDocument({
-                     width: gSettings.gifSize,
-                     height: gSettings.gifSize,
-                     resolution: dpi,
-                     fill: "transparent"         
-                  }), { "commandName": "Create Target Document" });
-               // workaround for Photoshop bug when using the minimize button and hovering over taskbar thumbnail
-               await new Promise(r => setTimeout(r, 1000));
-               if (await xModal(() => sourceDoc.layers[0].duplicate(targetDoc, constants.ElementPlacement.PLACEATBEGINNING),
-                  { "commandName": "Duplicating a layer" }) == null) {
-                  alert("missing document");
-                  break;
-               }
-            }
-            await xModal(() => sourceDoc.closeWithoutSaving(), { "commandName": "closeWithoutSaving" });
+            await xModal(() => sourceDoc.layers[0].duplicate(targetDoc, constants.ElementPlacement.PLACEATBEGINNING),
+               { "commandName": "Duplicating a layer" });
 
+            await xModal(() => sourceDoc.closeWithoutSaving(), { "commandName": "closeWithoutSaving" });
             await new Promise(r => setTimeout(r, 100));    // required to give time to process Cancel Button
          }
 
@@ -266,7 +257,7 @@ class Gifs {
 
       // process all the files and folders in the rootFolder
       const entries = await rootFolder.getEntries();
-      for (let i = 0; (i < entries.length) && (!stopTag); i++) {
+      for (let i = 0; (i < entries.length) && (!stopFlag); i++) {
          const entry = entries[i];;
          await progressbar.incVal();
 
