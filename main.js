@@ -232,7 +232,7 @@ async function enableButtons() {
     notRunningList.forEach((btn) => enableButton(btn));
     runningList.forEach((btn) => disableButton(btn));
     setStatus("");
-       await progressbar.setVal(0);
+    await progressbar.setVal(0);
 };
 /**
 *  Set all the buttons in the notRunningList to disabled'
@@ -277,15 +277,19 @@ function setOutputModeChecked() {
 let progressbar = {
     lastProgressVal: 0,
     iVal: 0,
-    nTotal: 0,
+    set max(newMax) {
+        this.max = newMax;
+        this.iVal = 0;
+    },
+    max: 0,
     async incVal() { await this.setVal(this.iVal + 1) },
     /** Fill in the progress bar with a new value;
      * 
-     * @param {*} val Value to put in the progress bar in the range [0,nTotal]
+     * @param {*} val Value to put in the progress bar in the range [0,max]
      */
     async setVal(val) {
         this.iVal = val;
-        const newVal = (val / this.nTotal).toFixed(2);  // make 100 intervals along the bar
+        const newVal = (val / this.max).toFixed(2);  // make 100 intervals along the bar
         if (newVal != this.lastProgressVal) {  // omit delay, if no redraw is needed
             this.lastProgressVal = newVal;
             document.getElementById("progressBar").value = newVal;

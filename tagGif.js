@@ -38,8 +38,8 @@ class Gifs {
       this.originalPhotosFolder = await fs.getFolder();
       if (this.originalPhotosFolder != null) {  // null if user cancels dialog              
 
-         // gather all the years of the each person
-         progressbar.nTotal = await countFiles(this.originalPhotosFolder);
+         await disableButtons("Counting Files");
+         progressbar.max = await countFiles(this.originalPhotosFolder);
          if (!stopFlag) {
             await disableButtons("Creating an Index");  // only enable the Cancel button 
             this.personsDict = {};  // keys = person names, entries = rectange definitions and subjects
@@ -153,98 +153,102 @@ class Gifs {
       if (this.originalPhotosFolder == null) {
          await this.createIndex();
       }
-      /**
-       * a filtered version of the this.personsDict
-       */
-      let filteredDict = await this.filtered();
-      await disableButtons("Making Gifs");
+      if (this.originalPhotosFolder != null) {
+         /**
+          * a filtered version of the this.personsDict
+          */
+         let filteredDict = await this.filtered();
+         await disableButtons("Making Gifs");
 
-      // create gif folder
-      const ents = await this.originalPhotosFolder.getEntries();
-      let newName = getFaceTagsTreeName(this.originalPhotosFolder.name, ents, gifSuffix);
-      let gifFolder = await this.originalPhotosFolder.createFolder(newName);
+         // create gif folder
+         const ents = await this.originalPhotosFolder.getEntries();
+         let newName = getFaceTagsTreeName(this.originalPhotosFolder.name, ents, gifSuffix);
+         let gifFolder = await this.originalPhotosFolder.createFolder(newName);
 
-      // go through all the people that were found and make a GIF for each one.
+         // go through all the people that were found and make a GIF for each one.
 
-      progressbar.nTotal = Object.keys(filteredDict).length;
+         let personKeys = Object.keys(filteredDict).sort();
+              progressbar.max = personKeys.length
 
-      for (let personKey in filteredDict) {
-         await progressbar.incVal();
+         for (let i = 0; i < personKeys.length && !stopFlag; i++) {
+            let personKey = personKeys[i];
+            await progressbar.setVal(i);
 
-         if (stopFlag)
-            break;
-         const dpi = 72;
-         let targetDoc = null;
-         // if the windows is minimized with the minimize button, and the cursor is hovering over the thumbnail in the task bar, the create Document may fail and return null
-         while (targetDoc == null)
-            targetDoc = await xModal(() => app.createDocument({
-               width: gSettings.gifSize,
-               height: gSettings.gifSize,
-               resolution: dpi,
-               fill: "transparent"
+            const dpi = 72;
+            let targetDoc = null;
+            // if the windows is minimized with the minimize button, and the cursor is hovering over the thumbnail in the task bar, the create Document may fail and return null
+            while (targetDoc == null) {
 
-            }), { "commandName": "Create Target Document" });
+               targetDoc = await xModal(() => app.createDocument({
+                  width: gSettings.gifSize,
+                  height: gSettings.gifSize,
+                  resolution: dpi,
+                  fill: "transparent"
 
-
-         // For each person, there was an entry, one per period.
-         // Go through the periods and make a frame in the GIF for each period
-
-         // dictionaries can be unordered so make an ordered array
-
-         let msKeys = Object.keys(filteredDict[personKey]).sort(function (a, b) { return a - b; }
-         );
-
-         for (let i = 0; i < msKeys.length && !stopFlag; i++) {
-
-            // make the source image the same size as the gif
-            let person = filteredDict[personKey][msKeys[i]];
-            let sourceDoc = await xModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
-            await xModal(() => sourceDoc.flatten(), { "commandName": "Flattening" });
-
-            //  With fullPhoto enabled, create a document where the biggest dimension is equal to the gifSize
-
-            if (gSettings.fullPhoto) {
-               let biggestDimension = Math.max(sourceDoc.width, sourceDoc.height);
-               let x = parseInt(gSettings.gifSize * sourceDoc.width / biggestDimension);
-               let y = parseInt(gSettings.gifSize * sourceDoc.height / biggestDimension)
-               await xModal(() => sourceDoc.resizeImage(x, y, dpi), { "commandName": "Resize batched File" });
-            } else {
-
-               // With the full mode off, create a square, twice as large as the person's rectangle,  that can be contained in the document 
-               // positioned so distance from the center point of the person
-               // to the centerpoint of the square is minimized.
-
-               let s = 2 * person.w;
-               const centerX = s / 2;  // the center of the new square
-               const centerY = s / 2;
-               const playRight = sourceDoc.width - s;
-               const playDown = sourceDoc.height - s;
-               const moveRight = Math.min(playRight, Math.max(0, person.x - centerX));
-               const moveDown = Math.min(playDown, Math.max(0, person.y - centerY));
-               let bounds = { left: moveRight, top: moveDown, bottom: moveDown + s, right: moveRight + s };
-               await xModal(() => sourceDoc.crop(bounds), { "commandName": "Crop File" });
-               await xModal(() => sourceDoc.resizeImage(gSettings.gifSize, gSettings.gifSize, dpi), { "commandName": "Resize batched File" });
+               }), { "commandName": "Create Target Document" });
+               await new Promise(r => setTimeout(r, 100));    // required to give time to process Cancel Button
             }
 
-            await xModal(() => sourceDoc.layers[0].duplicate(targetDoc, constants.ElementPlacement.PLACEATBEGINNING),
-               { "commandName": "Duplicating a layer" });
+            // For each person, there was an entry, one per period.
+            // Go through the periods and make a frame in the GIF for each period
 
-            await xModal(() => sourceDoc.closeWithoutSaving(), { "commandName": "closeWithoutSaving" });
-            await new Promise(r => setTimeout(r, 100));    // required to give time to process Cancel Button
+            // dictionaries can be unordered so make an ordered array
+
+            let msKeys = Object.keys(filteredDict[personKey]).sort(function (a, b) { return a - b; }
+            );
+
+            for (let i = 0; i < msKeys.length && !stopFlag; i++) {
+
+               // make the source image the same size as the gif
+               let person = filteredDict[personKey][msKeys[i]];
+               let sourceDoc = await xModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
+               await xModal(() => sourceDoc.flatten(), { "commandName": "Flattening" });
+
+               //  With fullPhoto enabled, create a document where the biggest dimension is equal to the gifSize
+
+               if (gSettings.fullPhoto) {
+                  let biggestDimension = Math.max(sourceDoc.width, sourceDoc.height);
+                  let x = parseInt(gSettings.gifSize * sourceDoc.width / biggestDimension);
+                  let y = parseInt(gSettings.gifSize * sourceDoc.height / biggestDimension)
+                  await xModal(() => sourceDoc.resizeImage(x, y, dpi), { "commandName": "Resize batched File" });
+               } else {
+
+                  // With the full mode off, create a square, twice as large as the person's rectangle,  that can be contained in the document 
+                  // positioned so distance from the center point of the person
+                  // to the centerpoint of the square is minimized.
+
+                  let s = 2 * person.w;
+                  const centerX = s / 2;  // the center of the new square
+                  const centerY = s / 2;
+                  const playRight = sourceDoc.width - s;
+                  const playDown = sourceDoc.height - s;
+                  const moveRight = Math.min(playRight, Math.max(0, person.x - centerX));
+                  const moveDown = Math.min(playDown, Math.max(0, person.y - centerY));
+                  let bounds = { left: moveRight, top: moveDown, bottom: moveDown + s, right: moveRight + s };
+                  await xModal(() => sourceDoc.crop(bounds), { "commandName": "Crop File" });
+                  await xModal(() => sourceDoc.resizeImage(gSettings.gifSize, gSettings.gifSize, dpi), { "commandName": "Resize batched File" });
+               }
+
+               await xModal(() => sourceDoc.layers[0].duplicate(targetDoc, constants.ElementPlacement.PLACEATBEGINNING),
+                  { "commandName": "Duplicating a layer" });
+
+               await xModal(() => sourceDoc.closeWithoutSaving(), { "commandName": "closeWithoutSaving" });
+               await new Promise(r => setTimeout(r, 100));    // required to give time to process Cancel Button
+            }
+
+            // turn the layers into a gif and save it. If there are less than 2 layers it seems to be a special case.
+
+            if (targetDoc.layers.length > 2) {
+               await xModal(() => targetDoc.layers.getByName("Layer 1").delete(), { "commandName": "Removing transparent layer" });
+               await this.makeGif();
+            }
+            let saveEntry = await gifFolder.createFile(personKey + '.gif');
+            await xModal(() => targetDoc.saveAs.gif(saveEntry), { "commandName": "saveAs.gif" });
+
+            await xModal(() => targetDoc.closeWithoutSaving(), { "commandName": "closeWithoutSaving" });
          }
-
-         // turn the layers into a gif and save it. If there are less than 2 layers it seems to be a special case.
-
-         if (targetDoc.layers.length > 2) {
-            await xModal(() => targetDoc.layers.getByName("Layer 1").delete(), { "commandName": "Removing transparent layer" });
-            await this.makeGif();
-         }
-         let saveEntry = await gifFolder.createFile(personKey + '.gif');
-         await xModal(() => targetDoc.saveAs.gif(saveEntry), { "commandName": "saveAs.gif" });
-
-         await xModal(() => targetDoc.closeWithoutSaving(), { "commandName": "closeWithoutSaving" });
+         await enableButtons();
       }
-      await enableButtons();
    };
 
 
@@ -259,11 +263,11 @@ class Gifs {
       const entries = await rootFolder.getEntries();
       for (let i = 0; (i < entries.length) && (!stopFlag); i++) {
          const entry = entries[i];;
-         await progressbar.incVal();
 
          if (skipThisEntry(entry))
             continue;
 
+         await progressbar.incVal();
          if (entry.isFolder) {
             await this.recurseIndex(entry);
          } else {

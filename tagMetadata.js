@@ -2,6 +2,13 @@
 // copywrite 2023 Richard R. Lyman
 
 
+function removeIllegalFilenameCharacters(str) {
+    let fileName = str.toString();
+    fileName = fileName.toString().replaceAll("  ", " ");
+    ["/", "\\", "\"", ":", "<", ">", "\|",  "?", "*"].forEach((x) => {fileName = fileName.replaceAll(x, "");});
+    return fileName;
+}
+
 let lastDate = "2021-09-15T00:22:20";
 /**
  * Picks up the metadaa for the photo, parses it to find the People in Metadata Working Group format
@@ -56,7 +63,8 @@ function readPersonsFromMetadata(entry) {
             let subject = xmpMeta.getProperty(xmpConstants.NS_DC, "dc:subject[" + i + "]");
             if (subject == undefined)
                 break;
-            subjects.push(subject.toString());
+            subjects.push(removeIllegalFilenameCharacters(subject));
+
         }
 
         // value checks
@@ -106,23 +114,24 @@ function readPersonsFromMetadata(entry) {
                 // for each person, there is a list of keywords that apply to them
 
                 let javascriptDate = new XMPDateTime(dateTaken.toString()).getDate();
+     
                 const person = {
-                    "name": personName.toString(),
+                    "name": removeIllegalFilenameCharacters(personName),
                     "x": x,         // x pixel coordinate in the original uncropped photo
                     "y": y,         // y pixel coordinate in the original uncropped photo
                     "w": w,         // rectangle number of pixels wide
                     "h": h,         // rectangle number of pixels high
                     "entry": entry, // File pointer for opening in photoshop
-                    "dateTaken": javascriptDate       
+                    "dateTaken": javascriptDate
                 };
 
                 persons.push(person);
 
-  
-            // remove the person from the subjects
-            //removeItemAll(subjects, person.name);
-        } 
-    }
+
+                // remove the person from the subjects
+                //removeItemAll(subjects, person.name);
+            }
+        }
 
     } catch (e) { }
 

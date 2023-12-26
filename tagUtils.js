@@ -17,8 +17,8 @@ function skipThisEntry(entry) {
     if (!entry.isFolder) {
         legalType = false;
         let goodTypes = ['.bmp', /*'gif', */'.jpg', '.jpeg', '.png', '.psb', '.psd', '.tif', '.tiff'];
+        let eName = entry.name.toLowerCase();
         goodTypes.forEach((fType) => {
-            let eName = entry.name.toLowerCase();
             if (eName.endsWith(fType)) {
                 if (eName.replace(fType, "").length > 0)
                     legalType = true;
@@ -58,7 +58,7 @@ function getFaceTagsTreeName(originalName, ents, suffix) {
  * @returns the number of file entries under the root
  */
 async function countFiles(folder) {
-    await disableButtons("Counting Files");
+
     let ents = await folder.getEntries();
     let iCount = 0;
     for (let i = 0; i < ents.length && !stopFlag; i++) {

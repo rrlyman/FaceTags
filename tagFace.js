@@ -36,9 +36,7 @@ class Tags {
     async tagSingleFile() {
         this.aDoc = app.activeDocument;
         await disableButtons("Refreshing Labels");
-        if (app.documents.length == 0) {
-            alert("No file is loaded. In PhotoShop Classic, load a file before running the script!");
-        } else {
+        if (app.documents.length != 0) {
             let persons = readPersonsFromMetadata(null)[0];
             this.dontAsk = false;
             await this.faceTagTheImage(persons);
@@ -58,9 +56,9 @@ class Tags {
         const files = await fs.getFileForOpening({ allowMultiple: true });
 
         this.dontAsk = false; // puts up only one alert for missing metadata when loading a bunch of files
-        progressbar.nTotal = files.length;
+        progressbar.max = files.length;
         for (let i = 0; i < files.length && (!stopFlag); i++) {
-            await progressbar.incVal();
+            await progressbar.setVal(i);
             if (! await this.openAndTagFileFromDisk(files[i]))
                 continue;
         }
@@ -91,7 +89,8 @@ class Tags {
         const newFolderName = getFaceTagsTreeName(this.originalPhotosFolder.name, ents, labeledSuffix);
         const newFolder = await this.originalPhotosFolder.createFolder(newFolderName);
 
-        progressbar.nTotal = await countFiles(this.originalPhotosFolder);
+        await disableButtons("Counting Files");
+        progressbar.max = await countFiles(this.originalPhotosFolder);
         if (!stopFlag) {
             await disableButtons("Tagging files");  // only enable the Cancel button 
             await this.recurseBatchFiles(this.originalPhotosFolder, newFolder);
@@ -120,13 +119,13 @@ class Tags {
         if (newFolder != null) {
             const entries = await photosFolder.getEntries();
             for (let i = 0; (i < entries.length) && (!stopFlag); i++) {
-                await progressbar.incVal();
+
                 const entry = entries[i];;
 
                 if (skipThisEntry(entry))
                     continue;
 
-                // recurse folders
+                await progressbar.incVal();
 
                 if (entry.isFolder) {
                     await this.recurseBatchFiles(entry, newFolder);
