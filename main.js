@@ -1,14 +1,14 @@
 
 // copywrite 2023 Richard R. Lyman
-const { entrypoints, xmp } = require("uxp");
-const xmpEntry = require('uxp').storage.Entry;
-const xmpConstants = require('uxp').xmp.XMPConst;
-const fs = require('uxp').storage.localFileSystem;
-const { core, executeAsModal } = require("photoshop").core;
-const SolidColor = require("photoshop").app.SolidColor;
-const { app, constants } = require("photoshop");
-const { batchPlay } = require("photoshop").action;
-const imaging = require("photoshop").imaging;
+const { entrypoints, xmp, storage } = require("uxp");
+const { app, constants, imaging, action, core } = require("photoshop");
+
+const batchPlay = action.batchPlay;
+const SolidColor = app.SolidColor;
+const xmpEntry = storage.Entry;
+const xmpConstants = xmp.XMPConst;
+const fs = storage.localFileSystem;
+
 const { makeHelpDialogs } = require("./tagHelp.js");
 const { setForeground, setBackground } = require("./tagBatchPlay.js");
 const { Tags } = require("./tagFace.js");
@@ -28,11 +28,11 @@ const dialogs = makeHelpDialogs();   // help dialogs
 /**
  * runningList is IDs of elements  used to ENABLE buttons when running long operations
  */
-const runningList = Array(0);
+const runningList = [];
 /**
  * notRunningList is IDs of elements  used to DISABLE buttons when running long operations
  */
-const notRunningList = Array(0);
+const notRunningList = [];
 
 const elements = Array.from(document.querySelectorAll("*"));
 elements.forEach((element) => {
@@ -170,7 +170,6 @@ document.getElementById("btnStop2").addEventListener("click", evt => stopButtonE
 // ##############################  Utility Functions ##################################
 
 
-
 /** Given an event from a textField, convert that value to a slider position and set into the slider.
  * If the value is outside of the Slider range, set the textField to the "invalid" state.
  *  
@@ -219,6 +218,10 @@ function enableButton(str) {
 function disableButton(str) {
     document.getElementById(str).setAttribute("disabled", "true");
 };
+/** Set text in the progressbar
+ * 
+ * @param {*} str Text to put in the status label above the progressBar
+ */
 function setStatus(str) {
     document.getElementById("status").innerHTML = str;
     document.getElementById("status2").innerHTML = str;
@@ -238,7 +241,7 @@ async function enableButtons() {
 *  Set all the buttons in the notRunningList to disabled'
  * Set all the buttons in the runningList to enabled.
  * 
- * @param {*} str 
+ * @param {*} str Text to put in the status label above the progressBar
  */
 async function disableButtons(str) {
     notRunningList.forEach((btn) => disableButton(btn));
@@ -282,6 +285,9 @@ let progressbar = {
         this.iVal = 0;
     },
     max: 0,
+    /** Increment the last progressbar position and update the element.
+     * 
+     */
     async incVal() { await this.setVal(this.iVal + 1) },
     /** Fill in the progress bar with a new value;
      * 
@@ -307,10 +313,10 @@ let progressbar = {
  */
 async function xModal(x1, x2) {
     try {
-        let p1 = await executeAsModal(x1, x2);
+        let p1 = await core.executeAsModal(x1, x2).catch((reason) => {console.log(reason)});
         return p1;
     } catch (e) {
-        // find programming errors and the missing document when the windows minimize button is used.
+        // find programming errors 
         alert(e + JSON.stringify(x2));
         stopFlag = true;
         return null;

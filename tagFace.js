@@ -26,7 +26,7 @@ class Tags {
         this.aDoc = await xModal(() => app.open(entry), { "commandName": "Opening batched File" });
         await this.faceTagTheImage(persons);
 
-        await new Promise(r => setTimeout(r, 100));    // required to give time process Cancel Button  
+
         return true;
     }
 
@@ -189,11 +189,10 @@ class Tags {
 
             // Put all layers under a group layer, "FaceTags"
 
-            let faceTagsGroup = await executeAsModal(() => { return this.aDoc.createLayerGroup({ name: "FaceTags" }) }, { commandName: "AddingLayer" });
-
-            // For each person in the picture, make a text layer containing the persons's name on their chest in a TextItem.
+            let faceTagsGroup = await xModal(() => { return this.aDoc.createLayerGroup({ name: "FaceTags" }) }, { commandName: "AddingLayer" });
 
             for (let i = 0; (i < persons.length) && (!stopFlag); i++) {
+                await new Promise(r => setTimeout(r, 75));    // required to give time process Cancel Button             
                 await this.addLayer(persons[i], bestRect);
             }
 
@@ -211,6 +210,8 @@ class Tags {
 
             if (gSettings.outputMode == 1)
                 await makeAPortrait(this.aDoc);
+     
+            await new Promise(r => setTimeout(r, 150));    // required to give time process Cancel Button 
         }
     };
 
