@@ -234,6 +234,8 @@ function setStatus(str) {
 async function enableButtons() {
     notRunningList.forEach((btn) => enableButton(btn));
     runningList.forEach((btn) => disableButton(btn));
+    // disable makeGifs until an index has been built.
+    if (gSettings.outputMode === 2 && gifs.originalPhotosFolder == null) disableButton("makeGIFs");
     setStatus("");
     await progressbar.setVal(0);
 };
@@ -313,7 +315,7 @@ let progressbar = {
  */
 async function xModal(x1, x2) {
     try {
-        let p1 = await core.executeAsModal(x1, x2).catch((reason) => {console.log(reason)});
+        let p1 = await core.executeAsModal(x1, x2).catch((reason) => { console.log(reason) });
         return p1;
     } catch (e) {
         // find programming errors 
