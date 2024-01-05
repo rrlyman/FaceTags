@@ -58,7 +58,7 @@ class Gifs {
             await disableButtons("Processing Index");
 
             // clean out the keyword list on the panel
-            let menu = document.getElementById("dropMenu");
+            let menu = el.dropMenu;
             while (menu.options.length > 0)
                menu.options[0].remove();
             filterKeyword = "";

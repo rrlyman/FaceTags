@@ -25,8 +25,6 @@ class Tags {
             return false;
         this.aDoc = await xModal(() => app.open(entry), { "commandName": "Opening batched File" });
         await this.faceTagTheImage(persons);
-
-
         return true;
     }
 

@@ -146,6 +146,7 @@ async function setColor_actn(panelTitle, startColor) {
 async function setForeground() {
    resultOfPicker = await xModal(() => setColor_actn("Pick Text Foreground Color", gSettings.foreColor), { "commandName": "Pick Name Tag Foreground Color" });
    gSettings.foreColor = RGBFloatToSolid(resultOfPicker[0]);
+   console.log("6");
 };
 /**
  * Pick up the background border color for the label and put it in gSettings
