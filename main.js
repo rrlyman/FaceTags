@@ -16,24 +16,40 @@ const { Gifs } = require("./tagGif.js");
 
 // ################################  GLOBAL VARIABLES ##################################
 
-let stopFlag = false;
+/** if true the current operation is cancelled. */
+let stopFlag = false;   
+
+/** Suffix to append to the target folder name saving the generated GIF files. */
 const gifSuffix = "-gifs";
+
+/** Suffix to append to each folder for all faceTag photos. */
 const labeledSuffix = "-labeled";
+
+/** gifs is the class for making GIFs */
 const gifs = new Gifs();
+
+/** tags is the class for making photos with person labels */
 const tags = new Tags();
+
+/** filterKeyword is the keyword used for selecting a person for making GIFS */
 let filterKeyword = "";
 
+/** dialogs are the help screens */
 const dialogs = makeHelpDialogs();   // help dialogs
 
 /**
  * runningList is IDs of elements  used to ENABLE buttons when running long operations
  */
 const runningList = [];
+
 /**
  * notRunningList is IDs of elements  used to DISABLE buttons when running long operations
  */
 const notRunningList = [];
+
+/** el is a directory of all the elements in the html document */
 const el={};
+
 const elements = Array.from(document.querySelectorAll("*"));
 elements.forEach((element) => {
     if (element.id != null && element.hasAttributes()) {
@@ -47,10 +63,11 @@ elements.forEach((element) => {
 
 console.log("runningList " + JSON.stringify(runningList));
 console.log("notRunningList " + JSON.stringify(notRunningList));
-// console.log("All " + JSON.stringify(el));
+
 // ##############################  Restore Persistant State ##################################
 
 const gSettings = {};
+
 /**
  * load persistent gSettings data from the localStorage
 */
@@ -81,13 +98,13 @@ el.keywordDropDown.value = filterKeyword;
 el.daysSlider.value = gSettings.days;
 el.days.value = gSettings.days.toFixed(2);
 el.vertDisplacementSlider.value = gSettings.vertDisplacement;
-el.vertDisplacement.value = gSettings.vertDisplacement.toFixed(2);
+el.vertDisplacement.value = gSettings.vertDisplacement.toFixed(1);
 el.fontSizeSlider.value = gSettings.fontSize;
-el.fontSize.value = gSettings.fontSize.toFixed(2);
+el.fontSize.value = gSettings.fontSize.toFixed(1);
 el.gifSizeSlider.value = gSettings.gifSize;
 el.gifSize.value = gSettings.gifSize.toFixed(0);
 el.gifSpeedSlider.value = gSettings.gifSpeed;
-el.gifSpeed.value = gSettings.gifSpeed.toFixed(2);
+el.gifSpeed.value = gSettings.gifSpeed.toFixed(1);
 enableButtons();
 setOutputModeChecked();
 
@@ -128,11 +145,11 @@ el.outputMode2.addEventListener("change", async evt => outputModeEvent(evt));
 
 el.vertDisplacement.addEventListener("keydown", async evt => { if (evt.key == "Enter") textToSlider(evt, "vertDisplacement") });
 el.vertDisplacement.addEventListener("change", async evt => { await textToSlider(evt, "vertDisplacement") });
-el.vertDisplacementSlider.addEventListener("change", async evt => { await sliderToText(evt, "vertDisplacement", 2); });
+el.vertDisplacementSlider.addEventListener("change", async evt => { await sliderToText(evt, "vertDisplacement", 1); });
 
 el.fontSize.addEventListener("change", async evt => { await textToSlider(evt, "fontSize") });
 el.fontSize.addEventListener("keydown", async evt => { if (evt.key == "Enter") await textToSlider(evt, "fontSize") });
-el.fontSizeSlider.addEventListener("change", async evt => { await sliderToText(evt, "fontSize", 2); });
+el.fontSizeSlider.addEventListener("change", async evt => { await sliderToText(evt, "fontSize", 1); });
 
 el.dropMenu.addEventListener("change", evt => {
     filterKeyword = evt.target.value;
@@ -159,7 +176,7 @@ el.daysSlider.addEventListener("change", async evt => { await sliderToText(evt, 
 
 el.gifSpeed.addEventListener("change", async evt => { await textToSlider(evt, "gifSpeed"); });
 el.gifSpeed.addEventListener("keydown", async evt => { if (evt.key == "Enter") await textToSlider(evt, "gifSpeed") });
-el.gifSpeedSlider.addEventListener("change", async evt => { await sliderToText(evt, "gifSpeed", 2); });
+el.gifSpeedSlider.addEventListener("change", async evt => { await sliderToText(evt, "gifSpeed", 1); });
 
 el.gifSize.addEventListener("change", async evt => { await textToSlider(evt, "gifSize"); });
 el.gifSize.addEventListener("keydown", async evt => { if (evt.key == "Enter") await textToSlider(evt, "gifSize") });
@@ -170,7 +187,6 @@ el.btnStop2.addEventListener("click", evt => stopButtonEvent(evt));
 
 
 // ##############################  Utility Functions ##################################
-
 
 /** Given an event from a textField, convert that value to a slider position and set into the slider.
  * If the value is outside of the Slider range, set the textField to the "invalid" state.
@@ -189,6 +205,7 @@ async function textToSlider(evt, textID) {
             await tags.tagSingleFile();
     }
 };
+
 /** Convert a slider value to a text value truncated to n decimal places
  * and set the value in the textField.
  *  
@@ -203,6 +220,7 @@ async function sliderToText(evt, textID, nPlaces) {
     if (gSettings.outputMode < 2)
         await tags.tagSingleFile();
 };
+
 /**
  * If the condition is true, set the attributes to valid for the textBox,
  * If the condition is false, set the attributes of the texbox to invalid.
@@ -219,6 +237,7 @@ function checkValid(condition, textBoxId) {
     }
     return condition;
 };
+
 /**
  * 
  * @param {str} str Set the element with ID == str to enabled  
@@ -226,6 +245,7 @@ function checkValid(condition, textBoxId) {
 function enableButton(str) {
     el[str].removeAttribute("disabled");
 };
+
 /**
  * 
  * @param {str} str Set the element with ID == str to disabled  
@@ -233,6 +253,7 @@ function enableButton(str) {
 function disableButton(str) {
     el[str].setAttribute("disabled", "true");
 };
+
 /** Set text in the progressbar
  * 
  * @param {*} str Text to put in the status label above the progressBar
@@ -240,8 +261,9 @@ function disableButton(str) {
 function setStatus(str) {
     el.status.innerHTML = str;
     el.status2.innerHTML = str;
-}
-/***
+};
+
+/**
  * Set all the buttons in the notRunningList to enabled.
  * Set all the buttons in the runningList to disabled.
  * 
@@ -254,6 +276,7 @@ async function enableButtons() {
     setStatus("");
     await progressbar.setVal(0);
 };
+
 /**
 *  Set all the buttons in the notRunningList to disabled'
  * Set all the buttons in the runningList to enabled.
@@ -279,6 +302,7 @@ function setOutputModeChecked() {
     el.gifs.className = gSettings.outputMode == 2 ? "sp-tab-page visible" : "sp-tab-page ";
 };
 
+/** progress bar at the top of the dialog box */
 let progressbar = {
     lastProgressVal: 0,
     iVal: 0,
@@ -287,10 +311,12 @@ let progressbar = {
         this.iVal = 0;
     },
     max: 0,
+
     /** Increment the last progressbar position and update the element.
      * 
      */
     async incVal() { await this.setVal(this.iVal + 1) },
+    
     /** Fill in the progress bar with a new value;
      * 
      * @param {*} val Value to put in the progress bar in the range [0,max]
@@ -315,13 +341,16 @@ let progressbar = {
  */
 async function xModal(x1, x2) {
     try {
-        let p1 = await core.executeAsModal(x1, x2).catch((reason) => { console.log(reason) });
-        return p1;
+        return core.executeAsModal(x1, x2).catch((reason) => { 
+            console.log(x2); 
+            console.log(reason) ;
+            throw reason;            
+        });        
     } catch (e) {
         // find programming errors 
         alert(e + JSON.stringify(x2));
         stopFlag = true;
-        return null;
+        return new Promise(r => setTimeout(r, 100));
     }
 };
 

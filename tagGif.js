@@ -2,10 +2,19 @@
 // copywrite 2023 Richard R. Lyman
 
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
-const { getFaceTagsTreeName, skipThisEntry, countFiles } = require("./tagUtils.js");
+const { getFaceTagsTreeName, skipThisEntry, countFiles, createResultsFolder,removeIllegalFilenameCharacters } = require("./tagUtils.js");
 
+
+/* TBD 
+create a folder results
+create index.html with link to each person, each global keyword, a link to the error log
+create <person>.html a file for each person with links to the files that they are in
+create <keyword>.html a file for each global keyword with links to each person that has the global keyword
+create errorLog.html a file with a link to each file containing an error
+
+*/
 class Gifs {
-   constructor() {
+   init() {
       this.gifEntry = null;
 
       /**
@@ -23,21 +32,36 @@ class Gifs {
       this.personsDict = {};
 
       /**  
-       * this.subjectDict is a one to many dictionary, where the key is a subject( keyword), such as "Leal School" 
+       * subjectDict is a one to many dictionary, where the key is a subject( keyword), such as "Leal School" 
        * and the value is an array of the names of persons who have that subject on one of the photos with them in it.
        * e.g {"Leal School":  ["Rick Lyman", "Bob Jones"],
        *      "reunion":      ["Jim JOnes",  "Barbara Walters", "Mitch Miller"]}
        * */
-      this.subjectDict = {};   // keys = subjects that are not person names, entries = person names   
-      this.originalPhotosFolder = null;  // if not null,  then an index has been built
+      this.subjectDict = {};
+
+      /**savedMetaData is a directory with an entry for each file containing persons, subjects and errors */
+      this.savedMetaData = {};
+
+   }
+   constructor() {
+
+      /** root folder containing all the photos. If not null,  then an index already exists */
+      this.originalPhotosFolder = null;
+      this.init();
+   }
+
+   /** remove all entries from the drop down keyword menu */
+   clearMenu() {
+      // clean out the keyword list on the panel
+      let menu = el.dropMenu;
+      while (menu.options.length > 0)
+         menu.options[0].remove();
+      filterKeyword = "";
    }
 
    /**
   * Opens up a folder dialog box to select top folder to process
-  * Makes a new folder called this.originalPhotosFolder-gifs_n and builds a tree under it that duplicates
-  * the source tree. Populates it with tagged photos of the originals.
-  * 
-  * Annotates each file with the face tag labels for each person found in the file metadata 
+  * Makes a new folder called this.originalPhotosFolder-gifs_n and stores all the GIF files in that folder.
   * 
   * @returns none
   */
@@ -50,27 +74,75 @@ class Gifs {
          progressbar.max = await countFiles(this.originalPhotosFolder);
          if (!stopFlag) {
             await disableButtons("Creating an Index");  // only enable the Cancel button 
-            this.personsDict = {};   // keys = person names, entries = rectange definitions and subjects
-            this.subjectDict = {};   // keys = subjects, entries = person names
+
+            this.init();
 
             await this.recurseIndex(this.originalPhotosFolder);
 
             await disableButtons("Processing Index");
 
-            // clean out the keyword list on the panel
+            this.clearMenu();      // clean out the keyword list on the panel
+
+            // populate personDict
+
+            for (let nativePath in this.savedMetaData) {
+               this.savedMetaData[nativePath].persons.forEach((person) => {
+                  if (this.personsDict[person.name] == undefined) this.personsDict[person.name] = [];
+                  this.personsDict[person.name].push(person);
+               })
+            };
+
+            for (let nativePath in this.savedMetaData) {
+               this.savedMetaData[nativePath].subjects.forEach((subject) => {
+
+                  // each person.name should also be in the array of subjects for a file
+                  let mightBeGlobalSubject = true;
+                  this.savedMetaData[nativePath].persons.forEach((person) => {
+                     if (person.name == subject) {
+                        mightBeGlobalSubject = false;
+                     }
+                  });
+
+                  // it is an error if the subject is a person's name, record it in the log
+                  if (mightBeGlobalSubject && (this.personsDict[subject] != undefined)) {
+
+                     let folders = nativePath.split('\\');
+                     let filename = folders.pop();
+
+                     this.savedMetaData[nativePath] = {
+                        "persons": this.savedMetaData[nativePath].persons,
+                        "subjects": this.savedMetaData[nativePath].subjects.concat(subject),
+                        "metaDataErrors": this.savedMetaData[nativePath].metaDataErrors.concat("WARNING 01: Subject \"" + subject + "\" is missing from persons")
+                           .concat("Recommend: exiftool -Subject=\"" + subject + "\" \""  + nativePath + "\" ")
+                           .concat("Recommend: exiftool -Keywords=\"" + subject + "\" \""  + nativePath + "\" "),                           
+                        "exiftool": this.savedMetaData[nativePath].exiftool.concat("exiftool -Subject-=\"" + subject + "\" \""  + nativePath + "\"\r\n")
+                        .concat("exiftool -Keywords-=\"" + subject + "\" \""  + nativePath + "\"\r\n")                        
+                     }
+
+                  } else { // we found a global subject, add all the persons to its list
+
+                     if (this.subjectDict[subject] == undefined) this.subjectDict[subject] = [];
+
+                     this.savedMetaData[nativePath].persons.forEach((person) => {
+                        this.subjectDict[subject].push(person.name);
+                     });
+                  }
+               });
+            };
+
             let menu = el.dropMenu;
-            while (menu.options.length > 0)
-               menu.options[0].remove();
-            filterKeyword = "";
             let subjects = Object.keys(this.subjectDict).sort();
 
-            // purge the this.subjectDict of any keywords that are also persons
-            // This occurs when there is a person name in a photo that but there is no person rectangle for them.
+            // purge the subjectDict of any subjects that are also persons
+            // This occurs when there is a person name in a subjects of a photo that but there is no person rectangle for them.
+
             for (let iSubject in subjects) {
                if (this.personsDict[subjects[iSubject]] != undefined) {
                   delete this.subjectDict[subjects[iSubject]];
                }
             }
+
+            // populate the drop down list with non person subjects, a divider and then persons
 
             subjects = Object.keys(this.subjectDict).sort();
             for (let iSubject in subjects) {
@@ -80,8 +152,6 @@ class Gifs {
             }
 
             menu.appendChild(document.createElement("sp-menu-divider"));
-
-            // now add anyone to the dropdown who has a person rectangle
 
             let personNames = Object.keys(this.personsDict).sort();
             for (let i = 0; i < personNames.length; i++) {
@@ -94,11 +164,11 @@ class Gifs {
       }
    };
 
-   /** If the selected filterKeyword from the drop box is "" then use the this.personsDict as the source of the names to GIF
-  * If the selected filterKeyword is in this.subjectDict, then use all of the names for filterKeyword in the this.subjectDict.
-  * If the selected filtereyword is only in the this.personsDict, GIF only that person
+   /** If the selected filterKeyword from the drop box is "" then use the this.personsDict as the source of the names to GIF. 
+  * If the selected filterKeyword is in subjectDict, then use all of the names for filterKeyword in the this.subjectDict.
+  * If the selected filtereyword is only in the personsDict, GIF only that person.
   * 
-  * @param {*} newDict  a filtered version of the this.personsDict, unsorted!
+  * @param {*} newDict  a filtered version of the personsDict, unsorted!
   */
    async filtered() {
 
@@ -134,7 +204,8 @@ class Gifs {
       const msPerPeriod = 1000 * 60 * 60 * 24 * gSettings.days;
       await disableButtons("Applying Options");
 
-      // filters the array of times by only including one time in a given time perion in the newDict
+      // Filters the array of times by only including one time in a given time period  in the newDict (perios value set in the slider)
+
       for (let personKey in this.personsDict) {
          this.personsDict[personKey].forEach((person) => {
 
@@ -142,8 +213,10 @@ class Gifs {
 
             if (msPerPeriod == 0) {
                newDict[person.name][Math.floor(person.dateTaken.getTime())] = person;  // if days == 0, include all gifs for that person
+
             } else {
                const period = Math.floor(person.dateTaken.getTime() / msPerPeriod);
+
                if (!(period in newDict[person.name]) ||
                   !(newDict[person.name][period].w * newDict[person.name][period].h < person.w * person.h)) {
                   newDict[person.name][period] = person;
@@ -152,36 +225,46 @@ class Gifs {
          })
       };
 
+      // There are 3 cases, 
+      // 1) no dropDown list item has been selected, therefore GIF every person
+      // 2) a global subject has been selected, GIF every person who has that global subject in at least one file
+      // 3) a person's name has been selected, only GIF that one person     
+
+
       if (filterKeyword == "")
-         return newDict;  // unsorted ??
-      /**
-       * newDict2 has the same structure as newDict, but only includes people who have the filterKeyword in one of their photos
-       */
+         return newDict;  // GIF everyone
+
+      /** newDict2 has the same structure as newDict, but only includes people who have the filterKeyword in one of their photos */
       let newDict2 = {};
 
-      // sticks anyone in the new dictionary that had the picked subject
+      // sticks anyone in the new dictionary that had the filterKeyword, which is a global subject, in the file's subject
+
       if (this.subjectDict[filterKeyword] != undefined) {
          this.subjectDict[filterKeyword].forEach((pName) => {
             if (newDict[pName] != undefined)
                newDict2[pName] = newDict[pName];
          });
-         return newDict2;
+         return newDict2; // GIF those with the global subject
       }
-      // sticks anyone in the new dictionary that matches the picked name
+
       if (this.personsDict[filterKeyword] != undefined)
          newDict2[filterKeyword] = newDict[filterKeyword];
-      return newDict2;
+      return newDict2; // GIF onlyh one person
    };
 
    /** Run the gifmaker. If the folder tree has not been scanned, then create an index
   * 
   */
    async gifFolder() {
-      // if the index has already been created, then skip index creation
+
       if (this.originalPhotosFolder == null) {
          await this.createIndex();
       }
-      if (this.originalPhotosFolder != null) {
+
+      if (this.originalPhotosFolder == null) {
+         this.clearMenu();  // nothing was selected, exit without making GIFs
+      } else {
+
          /**
           * a filtered version of the this.personsDict
           */
@@ -192,6 +275,7 @@ class Gifs {
          const ents = await this.originalPhotosFolder.getEntries();
          let newName = getFaceTagsTreeName(this.originalPhotosFolder.name, ents, gifSuffix);
          this.gifEntry = await this.originalPhotosFolder.createFolder(newName);
+
 
          // go through all the people that were found and make a GIF for each one.
 
@@ -204,7 +288,7 @@ class Gifs {
 
             const dpi = 72;
             let targetDoc = null;
-            // if the windows is minimized with the minimize button, and the cursor is hovering over the thumbnail in the task bar, the create Document may fail and return null
+            // Adobe bug workaround: if the windows is minimized with the minimize button, and the cursor is hovering over the thumbnail in the task bar, the create Document may fail and return null
             while (targetDoc == null && !stopFlag) {
                targetDoc = await xModal(() => app.createDocument({
                   width: gSettings.gifSize,
@@ -219,12 +303,13 @@ class Gifs {
             // For each person, there was an entry, one per period.
             // Go through the periods and make a frame in the GIF for each period
 
-            // dictionaries can be unordered so make an ordered array
+            // dictionaries can be unordered so make an ordered array just to be pretty
 
             let msKeys = Object.keys(filteredDict[personKey]).sort(function (a, b) { return a - b; }
             );
 
             for (let i = 0; i < msKeys.length && !stopFlag; i++) {
+
                let person = filteredDict[personKey][msKeys[i]];
                let sourceDoc = await xModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
                await xModal(() => sourceDoc.flatten(), { "commandName": "Flattening" });
@@ -238,7 +323,7 @@ class Gifs {
                   await xModal(() => sourceDoc.resizeImage(x, y, dpi), { "commandName": "Resize batched File" });
                } else {
 
-                  // With the full mode off, create a square, twice as large as the person's rectangle,  that can be contained in the document 
+                  // With the full mode off, create a square, twice as large as the person's rectangle,  that can be contained within the document 
                   // positioned so distance from the center point of the person
                   // to the centerpoint of the square is minimized.
 
@@ -260,19 +345,27 @@ class Gifs {
             }
 
             // turn the layers into a gif and save it. If there are less than 2 layers it seems to be a special case.
-
-            if (targetDoc.layers.length > 2) {
-               await xModal(() => targetDoc.layers.getByName("Layer 1").delete(), { "commandName": "Removing transparent layer" });
-               await this.makeGif();
+            if (!stopFlag) {
+               if (targetDoc.layers.length > 2) {
+                  await xModal(() => targetDoc.layers.getByName("Layer 1").delete(), { "commandName": "Removing transparent layer" });
+                  await this.makeGif();
+               }
+               let saveEntry = await this.gifEntry.createFile(removeIllegalFilenameCharacters(personKey) + '.gif');
+               await xModal(() => targetDoc.saveAs.gif(saveEntry), { "commandName": "saveAs.gif" });
             }
-            let saveEntry = await this.gifEntry.createFile(personKey + '.gif');
-            await xModal(() => targetDoc.saveAs.gif(saveEntry), { "commandName": "saveAs.gif" });
 
             await xModal(() => targetDoc.closeWithoutSaving(), { "commandName": "closeWithoutSaving" });
          }
+
+         let logFile = await this.gifEntry.createFile("gifs.csv");
+
+
+
+         await createResultsFolder(this.gifEntry, this.savedMetaData);
          await enableButtons();
       }
    };
+
 
    /** Create an index of all the face rectangles in the folder tree
   * 
@@ -294,18 +387,8 @@ class Gifs {
             await this.recurseIndex(entry);
          } else {
             ////////////////////   PAYLOAD START   /////////////////////   
-            let [persons, subjects] = readPersonsFromMetadata(entry);  // persons in the file, with the subject keywords for each person
-
-            // a subject in this.subjectDict has an entry for each person that had at least one instance of that subject
-
-            persons.forEach((person) => {
-               subjects.forEach((subject) => {
-                  if (this.subjectDict[subject] == undefined) this.subjectDict[subject] = [];
-                  this.subjectDict[subject].push(person.name);
-               });
-               if (this.personsDict[person.name] == undefined) this.personsDict[person.name] = [];
-               this.personsDict[person.name].push(person);
-            })
+            let [persons, subjects, metaDataErrors, exiftool] = readPersonsFromMetadata(entry);  // persons in the file, with the subject subjects for each person
+            this.savedMetaData[entry.nativePath] = { "persons": persons, "subjects": subjects, "metaDataErrors": metaDataErrors, "exiftool": exiftool };
          }
          ////////////////////   PAYLOAD END   /////////////////////    
       }

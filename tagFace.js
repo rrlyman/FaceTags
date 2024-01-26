@@ -2,15 +2,25 @@
 // copywrite 2023 Richard R. Lyman
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
 const { setOutsideStroke, makeAPortrait } = require("./tagBatchPlay.js");
-const { getFaceTagsTreeName, skipThisEntry, countFiles } = require("./tagUtils.js");
+const { getFaceTagsTreeName, skipThisEntry, countFiles, createResultsFolder } = require("./tagUtils.js");
 
 
 class Tags {
-    constructor() {
-        this.originalPhotosFolder = null;   // if not null,  then an index has already been built
+    init() {
         this.dontAsk = false;               // puts up only one alert for missing metadata when loading a bunch of files
         this.aDoc = app.activeDocument;     // currently active document
+
+        /**savedMetaData is a directory with an entry for each file containing persons, subjects and errors */
+        this.savedMetaData = {};
+
+
     }
+    constructor() {
+        this.originalPhotosFolder = null;   // if not null,  then an index has already been built
+        this.init();
+
+    }
+
     /** face tag a file
      * 
      * @param {*} entry a UXP File entry for the disk file to be opened and tagged
@@ -20,10 +30,18 @@ class Tags {
     async openAndTagFileFromDisk(entry) {
         if (skipThisEntry(entry)) // skip over unsupported photo file types
             return false;
-        let persons = readPersonsFromMetadata(entry)[0];
+        let [persons, subjects, metaDataErrors, exiftool] = readPersonsFromMetadata(entry);
+        this.savedMetaData[entry.nativePath] = { "persons": persons, "subjects": subjects, "metaDataErrors": metaDataErrors, "exiftool": exiftool };
         if (persons.length == 0)
             return false;
-        this.aDoc = await xModal(() => app.open(entry), { "commandName": "Opening batched File" });
+        this.aDoc = null;
+        while (this.aDoc == null && !stopFlag) {
+            await xModal(() => app.open(entry), { "commandName": "Opening batched File" });
+            this.aDoc = app.activeDocument;
+            await new Promise(r => setTimeout(r, 100));  // required to give time to process Cancel Button
+        }
+        if (stopFlag || this.aDoc == null)
+            return false;
         await this.faceTagTheImage(persons);
         return true;
     }
@@ -35,8 +53,10 @@ class Tags {
         this.aDoc = app.activeDocument;
         await disableButtons("Refreshing Labels");
         if (app.documents.length != 0) {
-            let persons = readPersonsFromMetadata(null)[0];
+            let [persons, subjects, metaDataErrors, exiftool] = readPersonsFromMetadata(null);
             this.dontAsk = false;
+
+            this.resetHistoryState(this.aDoc);        // start with clean document  
             await this.faceTagTheImage(persons);
         }
         await enableButtons();
@@ -62,6 +82,7 @@ class Tags {
         }
         await enableButtons();
     };
+
     /**
      * Opens up a folder dialog box to select top folder to process
      * Makes a new folder called originalPhotosFolder-labelled_n and builds a tree under it that duplicates
@@ -72,31 +93,36 @@ class Tags {
       * @returns 
      */
     async tagBatchFiles() {
-        this.aDoc = app.activeDocument;
+
 
         this.originalPhotosFolder = await fs.getFolder();
         if (this.originalPhotosFolder == null) {  // null if user cancels dialog              
             return;
         }
-
-        this.dontAsk = true;  // omit no perssons found message
+        this.init();
+        this.dontAsk = true;  // omit no persons found message
         await disableButtons("Processing Folders");  // only enable the Cancel button  
 
         // create the top level labeledDirectoryFolder
         const ents = await this.originalPhotosFolder.getEntries();
         const newFolderName = getFaceTagsTreeName(this.originalPhotosFolder.name, ents, labeledSuffix);
-        const newFolder = await this.originalPhotosFolder.createFolder(newFolderName);
+        const targetFolderEntry = await this.originalPhotosFolder.createFolder(newFolderName);
 
         await disableButtons("Counting Files");
+
         progressbar.max = await countFiles(this.originalPhotosFolder);
         if (!stopFlag) {
             await disableButtons("Tagging files");  // only enable the Cancel button 
-            await this.recurseBatchFiles(this.originalPhotosFolder, newFolder);
+
+            await this.recurseBatchFiles(this.originalPhotosFolder, targetFolderEntry);
+
         }
+        await createResultsFolder(targetFolderEntry, this.savedMetaData);
         await enableButtons();
     };
+
     /**
-     * Opens up a folder dialog box to select top folder to process
+     * Opens up a folder dialog box to select root folder to process.
      * Makes a new folder called photosFolder-labelled_n and builds a tree under it that duplicates
      * the source tree. Populates it with tagged photos of the originals.
      * 
@@ -155,8 +181,8 @@ class Tags {
         }
     };
 
-    /**
-     *  create face labels for each person rectangle found in the document metadata
+    /** Create face labels for each person rectangle found in the document metadata
+     *  
      * @param {[{personName, x, y, w, h}]} persons 
      * @returns 
      */
@@ -173,9 +199,7 @@ class Tags {
 
         persons.sort((a, b) => b.name.toUpperCase().localeCompare(a.name.toUpperCase()));
 
-        // start with clean document  
 
-        await this.resetHistoryState(this.aDoc);
         // await selectMoveTool();
         if (this.aDoc.layers.length > 1)
             await xModal(() => this.aDoc.flatten(), { "commandName": "Flattening" });
@@ -208,7 +232,7 @@ class Tags {
 
             if (gSettings.outputMode == 1)
                 await makeAPortrait(this.aDoc);
-     
+
             await new Promise(r => setTimeout(r, 150));    // required to give time process Cancel Button 
         }
     };
@@ -216,7 +240,7 @@ class Tags {
     /**
      * make a new text layer for a person, wraps layer addition to make it run modal
      * @param {*} person {personName, x, y, w, h}
-     * @param {*} bestRect {w,h} face rectangle to be used for placing the text
+     * @param {*} bestRect {w,h} face rectangle size to be used for placing the text
      * 
      */
     async addLayer(person, bestRect) {
@@ -224,7 +248,7 @@ class Tags {
     };
 
     /**
-     * make a new text layer for a person
+     * Make a new text layer for a person.
      * @param {*} person {personName, x, y, w, h}
      * @param {*} bestRect {w,h} face rectangle to be used for placing the text
      */
@@ -238,8 +262,7 @@ class Tags {
             width: bestRect.w,
             height: bestRect.h
         });
-        //   newLayer.textItem.characterStyle.size = this.calculatePoints(gSettings, bestRect); // zeros the bounds       
-        //   newLayer.bounds = bnds;
+
         newLayer.textItem.contents = this.justifyText(person.name);
         newLayer.textItem.textClickPoint = { "x": person.x, "y": person.y };
         newLayer.textItem.paragraphStyle.justification = constants.Justification.CENTER;
@@ -250,26 +273,21 @@ class Tags {
      * Erase all edits by rewinding to the first history state.
      * @param {*} this.aDoc // the active document 
      */
-    async resetHistoryState() {
 
-        await xModal(() => {
-            if (this.aDoc.historyStates.length > 0) {
-                this.aDoc.activeHistoryState = this.aDoc.historyStates[0];
-            }
+    resetHistoryState(doc) {
+        if (doc.historyStates.length > 0) {
+            doc.activeHistoryState = this.aDoc.historyStates[0];
         }
-            , { "commandName": "Resetting History" });
     };
 
 
     /** 
-    *   Doc
-    *   Inflates the rectangles alot to give more room for text. 
-    *   Deflates the rectangles until there are no intersecting rectangles. 
-    *   Inflates them slightly again to make the text bigger. 
-     *  Moves the rectangle down below the chin. 
-     *  Converts the person regions to pixels. 
-     *  Returns an average rectangle size.  
-      * @param {[{personName, x,y,w,h}]} persons 
+    *   Inflate the rectangles alot to give more room for text. 
+    *   Deflate the rectangles until there are no intersecting rectangles. 
+    *   Inflate them slightly again to make the text bigger. 
+     *  Move the rectangle down below the chin. 
+     *  Convert the person regions to pixels. 
+     * @param {[{personName, x,y,w,h}]} persons 
      * @param {float} gVertDisplacement Amount to move the destination rectangle up or down
      * @returns the target rectangle size for all the persons in the photo
      */
@@ -310,20 +328,20 @@ class Tags {
      * If the face rectangle of a person hits the bottom of the photo, move the person rectangle up.
      * @param {*} persons   person rectangles
      * @param {*} bestRect  the width and height of the rectangle to use for all faces
-     * @returns 
+     * @returns bestRect 
      */
     hitsTheBottom(persons, bestRect) {
 
         for (let i = 0; i < persons.length; i++) {
             if ((persons[i].y + bestRect.h / 3) > this.aDoc.height) {       // does it almost hit bottom      
-                console.log(persons[i].name + " hits the bottom in " + this.aDoc.name);
+                // console.log(persons[i].name + " hits the bottom in " + this.aDoc.name);
                 persons[i].y = this.aDoc.height - .2 * bestRect.h;   // move it up
             }
         }
     };
 
     /**
-     * keep reducing the size of the average rectangle until there are no intersecting rectangles.
+     * Keep reducing the size of the average rectangle until there are no intersecting rectangles.
      * @param { [{personName, x,y,w,h}]} persons 
      * @param {{width, height}} bestRect 
      * @returns bestRect
@@ -345,7 +363,7 @@ class Tags {
 
     // 
     /**
-     * check to see if rectangles intersect
+     * Check to see if rectangles intersect
      * @param {*} persons 
      * @param {*} bestRect 
      * @returns true if there are two rectangles anywhere on the page that intersect,
@@ -354,7 +372,7 @@ class Tags {
         for (let i = 0; i < persons.length; i++) {
             for (let j = i + 1; j < persons.length; j++) {
                 if (this.intersect(persons[i], persons[j], bestRect)) {
-                    console.log(persons[i].name + " intersects " + persons[j].name);
+                    // console.log(persons[i].name + " intersects " + persons[j].name);
                     return true;
                 }
             }
@@ -367,7 +385,7 @@ class Tags {
      * @param {*} person1 
      * @param {*} person2 
      * @param {*} bestRect 
-     * @returns true if they intersec
+     * @returns true if they intersect
      */
     intersect(person1, person2, bestRect) {
 
@@ -385,7 +403,7 @@ class Tags {
     };
 
     /**
-     * calculate the points in pixels
+     * Calculate the points in pixels
      * @param {*} bestRect {width, height}
      * @returns pixels to be used in font size
      */
@@ -394,15 +412,10 @@ class Tags {
         const points1Char = 72 * inchesPerRectangle; // a single character across the rectangle
         const pointsNcharacters = points1Char / gSettings.charsPerFace;
 
-        // simplified (bestRect.w/ this.aDoc.resolution) *72 / gSettings.charsPerFace;
-
         let points = gSettings.fontSize * bestRect.w / (gSettings.charsPerFace);  // pixels per character
         if (points < 3.0)
             points = 3.0;
         return points;
-
-        // alternatively, leave out the bestRect
-        // return gSettings.fontSize;
     };
 
     /**

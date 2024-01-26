@@ -3,47 +3,21 @@ body {
   padding: 0 8px 0;
 }
 
-li:before {
-  content: '• ';
-  width: 3em;
-}
-
-.step {
-  border: 1px solid #808080;
-  border-radius: 4px;
-  font-size: 14px;
-  padding-top: 8px;
-  padding-bottom: 8px;
-}
-
-footer {
-  color: white;
-  padding-top: 8px;
-  padding-bottom: 8px;
-}
-
-li:before {
-  content: '• ';
-  width: 3em;
-}
-
-/* sp-body {
-  flex: 1 1 auto;
-} */
 .btn {
   display: flex;
   justify-content: space-between;
-  padding: 8px;
+  padding: 4px;
 }
 
 div {
-  padding-top: 4px;
-  padding-bottom: 4px;
+  padding-top: 2px;
+  padding-bottom: 2px;
 }
 
 p {
   display: flex;
   justify-content: space-between;
+  padding: 0px;
 }
 
 .sp-tab-page {
@@ -61,14 +35,5 @@ p {
   flex: 0 0 auto;
 }
 
-.one-third {
-  width: 33%;
-}
-.box {
-  width: 30%;
-  height: 100px;
-  border: 1px solid black;
-  /* padding: 10px; */
-  /* margin: 10px; */
-}
+
 

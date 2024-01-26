@@ -28,13 +28,48 @@ function skipThisEntry(entry) {
     return (!legalType) || illegalName;
 };
 
+
+async function createResultsFolder(targetFolderEntry, savedMetaData) {
+    const errorLogFolder = await targetFolderEntry.createFolder("errorLog");
+    const errorFile = await errorLogFolder.createFile("errorlog.html");
+
+    let html = [];
+    html.push('<!DOCTYPE html><html id="html"><head></head><body>');
+    for (fileName in savedMetaData) {
+
+        //list a file and and all people, subjects, and errors in the file
+        if (savedMetaData[fileName].metaDataErrors.length > 0) {
+            html.push("<p>");
+            html.push("<a href=file://" + fileName.replaceAll("\"", "/").replaceAll(" ", "%20") + ">" + fileName + "</a> ");
+
+            savedMetaData[fileName].metaDataErrors.forEach((error) => {
+                html.push("<div>" + error + "<\div>");
+
+            });
+        };
+        html.push("</p>");
+    };
+    html.push("</body> </html>");
+    errorFile.write(html.join(" "), { append: true });
+
+    const exifFile = await errorLogFolder.createFile("recommendations.bat");
+    exifFile.write("cd C:/Users/Owner/Dropbox/ExifTools\r\n");
+    for (fileName in savedMetaData) {
+    if (savedMetaData[fileName].exiftool.length > 0)
+        exifFile.write(savedMetaData[fileName].exiftool.forEach((exif) => {
+            exifFile.write(exif, { append: true });
+        }));
+    }
+
+};
+
 /**
  * Determine the suffix of the labeledDirectory folder by finding previous versions and adding 1 to the _n suffix of the folder name.
  */
 /**
  * 
  * @param {*} ents List of files and folders of the top level folder 
- * @returns The name of the labeledDirectory top level folder
+ * @returns The name of the output labeledDirectory top level folder
  */
 function getFaceTagsTreeName(originalName, ents, suffix) {
     let iMax = 0;
@@ -71,8 +106,34 @@ async function countFiles(folder) {
     return iCount;
 }
 
+/** Given a string, capitalize the words
+ * 
+ * @param {*} str String that may contain illegal characters
+ * @returns capitalized string
+ */
+function capitalize(str) {
+    let fileName = str.toString();
+    fileName = fileName.toString().replaceAll("  ", " "); // remove double spaces
+    return fileName.split(" ").map((word) => {
+        return word[0].toUpperCase() + word.substring(1);
+    }).join(" ");
+};
 
+/** Given a string, remove any characters that will cause trouble later when the string is used to create a file name 
+ * And standardize capitalization
+ * 
+ * @param {*} str String that may contain illegal characters
+ * @returns sanitized string
+ */
+function removeIllegalFilenameCharacters(str) {
+    let fileName = str.toString();
+    while (fileName.includes("  ")) {
+        fileName = fileName.replaceAll("  ", " "); // remove double spaces
+    }
+    ["/", "\\", "\"", ":", "<", ">", "\|", "?", "*"].forEach((x) => { fileName = fileName.replaceAll(x, ""); });
+    return capitalize(fileName);
+};
 
 module.exports = {
-    getFaceTagsTreeName, skipThisEntry, countFiles
+    getFaceTagsTreeName, skipThisEntry, countFiles, createResultsFolder,  removeIllegalFilenameCharacters
 };

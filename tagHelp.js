@@ -1,7 +1,8 @@
 
 // copywrite 2023 Richard R. Lyman
-// const { Tags } = require("./tagFace.js");
+/** The content of a dialog box, each array item if the html for the dialog page */
 const txt = [
+
     // Step 1
     '<p>In Lightroom Classic in the Library Loupe view, a rectangle will appear around each person\'s face.&nbsp;' +
     'If there is no rectangle, then click and drag to draw one.' +
@@ -9,6 +10,7 @@ const txt = [
     '<p>Type a name or other text into the box above the rectangle.&nbsp;' +
     'This is the text that will show up as a label for each person.'+
     '</p> ',
+
     // Step 2
     '<p>The rectangle information must be stored in the photo file. &nbsp;' +
     ' Either, edit a copy in Photoshop with Lightroom adjustments, select "Save Metadata to File or &nbsp;' +
@@ -17,6 +19,7 @@ const txt = [
     '<meta name="viewport" content="width=device-width, initial-scale=1"> '+
       '<p><img src="MetaData.png" ></p>' +    
     '</p> ',
+
     // Step 3
     '<p>The next step is to go over to PhotoShop 2024 and load the file. &nbsp;' +
         ' There are numerous ways to do this. '+
@@ -28,6 +31,7 @@ const txt = [
         'ALWAYS edit a copy of the photo, since accidentally selecting Yes, when prompted to overwrite a file,&nbsp;' +
         'will cause the image with the labels to be saved.</li>' +
     '</p> ',
+
     // Step 4
     '<p>After control changes, the face tag program will be automatically rerun.' +
         '<ul>'+
@@ -43,6 +47,7 @@ const txt = [
             '<li>"Folders" opens a folder picker. Select the parent folder containing the images. A new folder tree, "Facetags_n"  containing the tagged images will be created under the parent folder.</li>'+            
         '</ul>'+
     '</p> ',
+
     // Step 5
     '<p>After Tagging the Faces, here are some things to try:' +
         '<ul>' +
@@ -54,30 +59,39 @@ const txt = [
             ' NOTE: Clicking on Refresh will delete all edits by rewinding to the initial history state!</li>' +   
         '</ul>'+    
         '</p>' ,
+
     // Step 6
     '<p>GIF (Graphical Interchange Format)  files are small slideshows that cycle through the frames showing one photo after another. &nbsp; '+
     ' The GIF maker in this program goes through all your photos, finding all those people who have been identified, then it constructs GIFs, &nbsp; '+
     ' using one photo for each person. The  GIF for an individual, such as “Rick Lyman” is stored in a file “Rick Lyman.gif”. &nbsp; '+
     '</p>',
+
     // Step 7      
  
     '<p>First build an index. In the File Folder dialog box, choose the root of all you photo files. &nbsp; '+
     '  This analyzes all the files and folders under the foot folder.'+
     '<p><img src="Step7a.png">  </p>'+
     '</p>',
+
      // Step 8
-    '<p> The GIFs are square.  \"Full Photo\" copies from each photo into the GIF. If \"Full Photo\" is not selected &nbsp; '+
-    ' just the person\'s face is copied into the GIF. ' + 
-    'br>The GIF size is the number of pixels on a side for the resulting GIFs. &nbsp; '+
-    'The Frame Speed is the number of seconds that each frame will display. A small random perturbation is applied&nbsp; '+
-    ' so that a matrix of GIFs will blink randomly.' +
+    '<p> Normally, The GIFs are square and contain just the person\'s face in each frame.   However, \"Full Photo\" can be rectangular &nbsp;'+
+    'and each full photo is copied into the GIF creating a slideshow. '+
+    '<ul>' +
+    ' <li> \"GIF Size\" is the number of pixels on a side for the resulting GIFs or it is the maximum width or height of a \"Full Photo\". &nbsp; </li>'+
+    ' <li> \"Seconds\/Farme\" is the number of seconds that each frame will display. A small random perturbation is applied&nbsp; '+
+    ' so that a matrix of GIFs will blink randomly.</li>'+
+    ' <li> \"Days\/Photo\" is the spacing between the \"Data Taken\" of each photo selected.  For instance, to make each photo represent one year ' +
+    ' set \"Days\/Photo\" to 365.24. Setting the \"Days\/Photo\" to zero will make a GIF of all photos.</li>'+
+    '</ul>'+  
     '</p>',
+
     // Step 9
     '<p>Now select which people to make GIFs for.  If a single person’s name is selected, then only one GIF will be made. &nbsp; '+
     '  If a keyword has been applied to a number of photos, then GIFs will be made for all the people who were in those photos. &nbsp; ' +
     '  For instance, if all the senior class mugshots have “Senior Class” keyword, the selecting “Senior Class” from  &nbsp; '+
     ' the drop down list will cause GIFs for those people to be made from all the photos in the folder tree.'+
     '</p>',
+    
     // Step 10
     '<p>After selecting the keyword, GIF size, and GIF speed parameters, push the Make GIFS button to start the process. '+
     'The output GIFs are placed in a folder underneath the root folder with the same name as the root folder'+
@@ -87,6 +101,12 @@ const txt = [
     '</p>'
 
 ];
+
+/** Create a dialog box
+ * 
+ * @param {*} i The number of the help page to create.
+ * @returns The contents of the dialog box
+ */
 function helpHtml(i) {
     let y = "";
      if(i<5)
@@ -119,6 +139,7 @@ function helpHtml(i) {
         '</footer>';
     return x;
 };
+
 /**
  * Makes an array of Dialog HTML elements, one for each help page
  * @returns dialogs
@@ -132,7 +153,15 @@ function makeHelpDialogs() {
         dialogs.push(newDialog);
     }
 
+    /**
+     * 
+     * @param {*} evt Event that create this call to the function 
+     * @returns The dialog page element.
+     */
     function dialogE(evt) { return evt.target.parentNode.parentNode }
+
+    // create event listeners for the 4 buttons found at the bottome of the help dialog.
+
     document.getElementsByClassName("btnCancel").forEach((bNode) => {
         bNode.addEventListener("click", evt => {
         dialogE(evt).close();  
