@@ -2,7 +2,7 @@
 // copywrite 2023 Richard R. Lyman
 
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
-const { getFaceTagsTreeName, skipThisEntry, countFiles, createResultsFolder,removeIllegalFilenameCharacters } = require("./tagUtils.js");
+const { getFaceTagsTreeName, skipThisEntry, countFiles, writeErrors, writePersons, writeGlobalSubjects, removeIllegalFilenameCharacters, errorLog } = require("./tagUtils.js");
 
 
 /* TBD 
@@ -18,26 +18,41 @@ class Gifs {
       this.gifEntry = null;
 
       /**
-       * personsDict is adictionary, where the key is the person's name and the value is a dictionary containing the person's info
-       * e.g. {"Rick Lyman": 
+       * personsDict is a dictionary, where the key is the person's name and the value is an array of  dictionaries containing the person's info
+       * e.g. {"Rick Lyman": [
                   {"name": "Rick Lyman", 
                  "x": x, 
                   "y": y, 
                   "w": w, 
                   "h": h, 
                   "entry": entry, 
-                  "dateTaken": javascriptDate }
-   }
+                  "dateTaken": javascriptDate },
+                  {"name": "Rick Lyman", 
+                 "x": x, 
+                  "y": y, 
+                  "w": w, 
+                  "h": h, 
+                  "entry": entry, 
+                  "dateTaken": javascriptDate  }
+             ]
+        }
+      }
     */
       this.personsDict = {};
 
       /**  
-       * subjectDict is a one to many dictionary, where the key is a subject( keyword), such as "Leal School" 
+       * globalSubjects is a one to many dictionary, where the key is a subject( keyword), such as "Leal School" 
        * and the value is an array of the names of persons who have that subject on one of the photos with them in it.
-       * e.g {"Leal School":  ["Rick Lyman", "Bob Jones"],
-       *      "reunion":      ["Jim JOnes",  "Barbara Walters", "Mitch Miller"]}
+       * e.g {"Leal School":  ["Rick Lyman", "Bob Jones"]}
        * */
-      this.subjectDict = {};
+      this.globalSubjects = {};
+
+      /**  
+       * globalFiles is a one to many dictionary, where the key is a subject( keyword), such as "Leal School" 
+       * and the value is an array of the entries of files that have  that subject .
+       * e.g {"Leal School":  [entry for c:/temp/photo1.jpg, entry for c:/temp/photos2.jpg]}
+       * */
+      this.globalFiles = {};
 
       /**savedMetaData is a directory with an entry for each file containing persons, subjects and errors */
       this.savedMetaData = {};
@@ -96,55 +111,65 @@ class Gifs {
                this.savedMetaData[nativePath].subjects.forEach((subject) => {
 
                   // each person.name should also be in the array of subjects for a file
-                  let mightBeGlobalSubject = true;
+                  let foundSubjectInPersonDict = false;
                   this.savedMetaData[nativePath].persons.forEach((person) => {
-                     if (person.name == subject) {
-                        mightBeGlobalSubject = false;
+                     if (person.name != undefined && person.name.toLowerCase() == subject.toLowerCase()) {
+                        foundSubjectInPersonDict = true;
                      }
                   });
 
-                  // it is an error if the subject is a person's name, record it in the log
-                  if (mightBeGlobalSubject && (this.personsDict[subject] != undefined)) {
+                  // it is an error if a subject is not in the rectangle metadata for a file but it is found as a person's name somewhere else, 
+                  // i.e. it is not a valid global subject
 
-                     let folders = nativePath.split('\\');
-                     let filename = folders.pop();
+                  if (!foundSubjectInPersonDict) {
+                     // this is possibly a global subject
 
-                     this.savedMetaData[nativePath] = {
-                        "persons": this.savedMetaData[nativePath].persons,
-                        "subjects": this.savedMetaData[nativePath].subjects.concat(subject),
-                        "metaDataErrors": this.savedMetaData[nativePath].metaDataErrors.concat("WARNING 01: Subject \"" + subject + "\" is missing from persons")
-                           .concat("Recommend: exiftool -Subject=\"" + subject + "\" \""  + nativePath + "\" ")
-                           .concat("Recommend: exiftool -Keywords=\"" + subject + "\" \""  + nativePath + "\" "),                           
-                        "exiftool": this.savedMetaData[nativePath].exiftool.concat("exiftool -Subject-=\"" + subject + "\" \""  + nativePath + "\"\r\n")
-                        .concat("exiftool -Keywords-=\"" + subject + "\" \""  + nativePath + "\"\r\n")                        
-                     }
+                     errorLog(this.savedMetaData[nativePath]["metaDataErrors"], this.savedMetaData[nativePath]["exiftool"],
+                        "WARNING 00: \"" + subject + "\" is in the subjects or keywords but is missing from mwgRegions." +
+                        " It is either a \"non person\" keyword (good) or an person's name that was erroneously put in the keywords without a face rectangle (bad).",
+                        "");
 
-                  } else { // we found a global subject, add all the persons to its list
-
-                     if (this.subjectDict[subject] == undefined) this.subjectDict[subject] = [];
+                     if (this.globalSubjects[subject] == undefined) this.globalSubjects[subject] = [];
 
                      this.savedMetaData[nativePath].persons.forEach((person) => {
-                        this.subjectDict[subject].push(person.name);
+                        if (!this.globalSubjects[subject].includes(person.name))
+                           this.globalSubjects[subject].push(person.name);
                      });
                   }
                });
             };
 
             let menu = el.dropMenu;
-            let subjects = Object.keys(this.subjectDict).sort();
+            let subjects = Object.keys(this.globalSubjects).sort();
 
-            // purge the subjectDict of any subjects that are also persons
+            // purge the globalSubjects of any subjects that are also persons
             // This occurs when there is a person name in a subjects of a photo that but there is no person rectangle for them.
 
             for (let iSubject in subjects) {
                if (this.personsDict[subjects[iSubject]] != undefined) {
-                  delete this.subjectDict[subjects[iSubject]];
+                  // console.log("purge" + subjects[iSubject]);
+                  delete this.globalSubjects[subjects[iSubject]];
                }
             }
 
+            // populate the file entries for the global subject
+            for (let nativePath in this.savedMetaData) {
+               this.savedMetaData[nativePath]["subjects"].forEach((subject) => {
+                  if (subject != undefined) {
+                     if (this.globalSubjects[subject] != undefined) {
+                        if (this.globalFiles[subject] == undefined)
+                           this.globalFiles[subject] = [];
+                        // console.log("add global path" + subject);
+                        this.globalFiles[subject].push(nativePath);
+                     }
+                  }
+               })
+            }
+
+
             // populate the drop down list with non person subjects, a divider and then persons
 
-            subjects = Object.keys(this.subjectDict).sort();
+            subjects = Object.keys(this.globalSubjects).sort();
             for (let iSubject in subjects) {
                const item = document.createElement("sp-menu-item");
                item.textContent = subjects[iSubject];
@@ -165,7 +190,7 @@ class Gifs {
    };
 
    /** If the selected filterKeyword from the drop box is "" then use the this.personsDict as the source of the names to GIF. 
-  * If the selected filterKeyword is in subjectDict, then use all of the names for filterKeyword in the this.subjectDict.
+  * If the selected filterKeyword is in globalSubjects, then use all of the names for filterKeyword in the this.globalSubjects.
   * If the selected filtereyword is only in the personsDict, GIF only that person.
   * 
   * @param {*} newDict  a filtered version of the personsDict, unsorted!
@@ -239,8 +264,8 @@ class Gifs {
 
       // sticks anyone in the new dictionary that had the filterKeyword, which is a global subject, in the file's subject
 
-      if (this.subjectDict[filterKeyword] != undefined) {
-         this.subjectDict[filterKeyword].forEach((pName) => {
+      if (this.globalSubjects[filterKeyword] != undefined) {
+         this.globalSubjects[filterKeyword].forEach((pName) => {
             if (newDict[pName] != undefined)
                newDict2[pName] = newDict[pName];
          });
@@ -357,11 +382,10 @@ class Gifs {
             await xModal(() => targetDoc.closeWithoutSaving(), { "commandName": "closeWithoutSaving" });
          }
 
-         let logFile = await this.gifEntry.createFile("gifs.csv");
-
-
-
-         await createResultsFolder(this.gifEntry, this.savedMetaData);
+         const resultsFolder = await this.gifEntry.createFolder("results");
+         await writeErrors(resultsFolder, this.savedMetaData);
+         // await writePersons(resultsFolder, this.personsDict);
+         // await writeGlobalSubjects(resultsFolder, this.globalSubjects, this.globalFiles);
          await enableButtons();
       }
    };
