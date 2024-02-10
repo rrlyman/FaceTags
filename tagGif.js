@@ -2,17 +2,8 @@
 // copywrite 2023 Richard R. Lyman
 
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
-const { getFaceTagsTreeName, skipThisEntry, countFiles, writeErrors, writePersons, writeGlobalSubjects, removeIllegalFilenameCharacters, errorLog } = require("./tagUtils.js");
+const { getFaceTagsTreeName, skipThisEntry, countFiles, writeErrors, removeIllegalFilenameCharacters, errorLog, addSetFunctions } = require("./tagUtils.js");
 
-
-/* TBD 
-create a folder results
-create index.html with link to each person, each global keyword, a link to the error log
-create <person>.html a file for each person with links to the files that they are in
-create <keyword>.html a file for each global keyword with links to each person that has the global keyword
-create errorLog.html a file with a link to each file containing an error
-
-*/
 class Gifs {
    init() {
       this.gifEntry = null;
@@ -41,21 +32,31 @@ class Gifs {
       this.personsDict = {};
 
       /**  
-       * globalSubjects is a one to many dictionary, where the key is a subject( keyword), such as "Leal School" 
-       * and the value is an array of the names of persons who have that subject on one of the photos with them in it.
-       * e.g {"Leal School":  ["Rick Lyman", "Bob Jones"]}
-       * */
+      * globalSubjects is a one to many dictionary, where the key is a subject (keyword), such as "Leal School" 
+      * and the value is an set of the names of persons who have that subject on one of the photos with them in it.
+      * e.g {"Leal School":  ["Rick Lyman", "Bob Jones"]}
+      * */
       this.globalSubjects = {};
 
       /**  
-       * globalFiles is a one to many dictionary, where the key is a subject( keyword), such as "Leal School" 
-       * and the value is an array of the entries of files that have  that subject .
-       * e.g {"Leal School":  [entry for c:/temp/photo1.jpg, entry for c:/temp/photos2.jpg]}
+       * globalFiles is a one to many dictionary, where the key is a subject (keyword), such as "Leal School" 
+       * and the value is a set of the native paths of files that have that subject .
+       * e.g {"Leal School":  ["entry for "c:/temp/photo1.jpg", "c:/temp/photos2.jpg"]}
        * */
       this.globalFiles = {};
 
-      /**savedMetaData is a directory with an entry for each file containing persons, subjects and errors */
+      /**savedMetaData is a directory with an entry for each file containing persons, subjects and errors.
+       * It is like the database containing all the information.
+      */
       this.savedMetaData = {};
+
+      /** set containing all the subjects */
+      this.subjectKeys = new Set();
+
+      /**set containing all person names */
+      this.personKeys = new Set();
+      addSetFunctions(this.personKeys);
+
 
    }
    constructor() {
@@ -64,6 +65,32 @@ class Gifs {
       this.originalPhotosFolder = null;
       this.init();
    }
+
+
+   queryDataBase(db) {
+
+      for (let nativePath in db) {
+         const fileInfo = db[nativePath];
+
+         fileInfo.regionNames.forEach((x) => { this.personKeys.add(x) });
+         fileInfo.subjects.forEach((x) => { this.subjectKeys.add(x) });
+
+         fileInfo.persons.forEach((person) => {
+            if (this.personsDict[person.name] == undefined) this.personsDict[person.name] = [];
+            this.personsDict[person.name].push(person);
+         })
+
+         fileInfo.subjects.forEach((subject) => {
+            if (this.globalSubjects[subject] == undefined) this.globalSubjects[subject] = new Set();;
+            fileInfo.regionNames.forEach((x) => { this.globalSubjects[subject].add(x) });
+
+            if (this.globalFiles[subject] == undefined) this.globalFiles[subject] = new Set();;
+            this.globalFiles[subject].add(nativePath);
+         })
+      };
+   }
+
+
 
    /** remove all entries from the drop down keyword menu */
    clearMenu() {
@@ -87,109 +114,87 @@ class Gifs {
 
          await disableButtons("Counting Files");
          progressbar.max = await countFiles(this.originalPhotosFolder);
-         if (!stopFlag) {
-            await disableButtons("Creating an Index");  // only enable the Cancel button 
 
-            this.init();
+         await disableButtons("Creating an Index");  // only enable the Cancel button for (let  
 
-            await this.recurseIndex(this.originalPhotosFolder);
+         this.init();
 
-            await disableButtons("Processing Index");
+         await this.recurseIndex(this.originalPhotosFolder);
+         await disableButtons("Processing Index");
+         this.queryDataBase(this.savedMetaData);
 
-            this.clearMenu();      // clean out the keyword list on the panel
 
-            // populate personDict
+         for (let nativePath in this.savedMetaData) {
+            if (nativePath.includes("IMG_2628 (2).jpg")) {
+               let k = 7;
+            }
 
-            for (let nativePath in this.savedMetaData) {
-               this.savedMetaData[nativePath].persons.forEach((person) => {
-                  if (this.personsDict[person.name] == undefined) this.personsDict[person.name] = [];
-                  this.personsDict[person.name].push(person);
-               })
-            };
+            const fileInfo = this.savedMetaData[nativePath];
 
-            for (let nativePath in this.savedMetaData) {
-               this.savedMetaData[nativePath].subjects.forEach((subject) => {
+            fileInfo.subjects.forEach((subject) => {
 
-                  // each person.name should also be in the array of subjects for a file
-                  let foundSubjectInPersonDict = false;
-                  this.savedMetaData[nativePath].persons.forEach((person) => {
-                     if (person.name != undefined && person.name.toLowerCase() == subject.toLowerCase()) {
-                        foundSubjectInPersonDict = true;
-                     }
-                  });
-
-                  // it is an error if a subject is not in the rectangle metadata for a file but it is found as a person's name somewhere else, 
-                  // i.e. it is not a valid global subject
-
-                  if (!foundSubjectInPersonDict) {
-                     // this is possibly a global subject
-
-                     errorLog(this.savedMetaData[nativePath]["metaDataErrors"], this.savedMetaData[nativePath]["exiftool"],
-                        "WARNING 00: \"" + subject + "\" is in the subjects or keywords but is missing from mwgRegions." +
-                        " It is either a \"non person\" keyword (good) or an person's name that was erroneously put in the keywords without a face rectangle (bad).",
-                        "");
-
-                     if (this.globalSubjects[subject] == undefined) this.globalSubjects[subject] = [];
-
-                     this.savedMetaData[nativePath].persons.forEach((person) => {
-                        if (!this.globalSubjects[subject].includes(person.name))
-                           this.globalSubjects[subject].push(person.name);
-                     });
+               if (!fileInfo.regionNames.has(subject)) {
+                  if (this.personKeys.has(subject)) {
+                     // it also possible that it looks good in Lightroom but the metadata has not been saved from Lightroom to the hard drive. Deleting the z_TBD keyword will 
+                     // cause the metadata to be written out.
+                     errorLog(fileInfo.html, fileInfo.cmd,
+                        "WARNING 00: \'" + subject + "\' is a person with a face detected somewhere in your photo tree, but in this file it is in the keywords " +
+                        "but is not in the Adobe regions. Possibly the detected face has been overwritten. Mark it with z_TBD and investigate it in Lightroom Classic",
+                        "exiftool  -Keywords-=\"z_TBD\" -Subject-=\"z_TBD\" -Keywords+=\"z_TBD\" -Subject+=\"z_TBD\"  " + "-m \"" + nativePath + "\"   ");                        
+                        // "exiftool  -Keywords-=\"" + subject + "\" -Subject-=\"" + subject + "\"  -Keywords-=\"z_TBD\" -Subject-=\"z_TBD\" -Keywords+=\"z_TBD\" -Subject+=\"z_TBD\"  " + "-m \"" + nativePath + "\"   ");
                   }
-               });
-            };
 
-            let menu = el.dropMenu;
-            let subjects = Object.keys(this.globalSubjects).sort();
-
-            // purge the globalSubjects of any subjects that are also persons
-            // This occurs when there is a person name in a subjects of a photo that but there is no person rectangle for them.
-
-            for (let iSubject in subjects) {
-               if (this.personsDict[subjects[iSubject]] != undefined) {
-                  // console.log("purge" + subjects[iSubject]);
-                  delete this.globalSubjects[subjects[iSubject]];
+                  errorLog(fileInfo.html, fileInfo.cmd,
+                     "WARNING 01: \'" + subject + "\' is in the subjects or keywords but is missing from mwgRegions." +
+                     " It is either a non person keyword (good) or a person's name that was erroneously put in the keywords without a face rectangle (bad). " ,
+                     "");
+                     // "exiftool  -Keywords-=\"z_TBD\" -Subject-=\"z_TBD\" -Keywords+=\"z_TBD\" -Subject+=\"z_TBD\"  " + "-m \"" + nativePath + "\"   ");
                }
-            }
-
-            // populate the file entries for the global subject
-            for (let nativePath in this.savedMetaData) {
-               this.savedMetaData[nativePath]["subjects"].forEach((subject) => {
-                  if (subject != undefined) {
-                     if (this.globalSubjects[subject] != undefined) {
-                        if (this.globalFiles[subject] == undefined)
-                           this.globalFiles[subject] = [];
-                        // console.log("add global path" + subject);
-                        this.globalFiles[subject].push(nativePath);
-                     }
-                  }
-               })
-            }
+            });
+         };
 
 
-            // populate the drop down list with non person subjects, a divider and then persons
+         this.clearMenu();      // clean out the keyword list on the panel
 
-            subjects = Object.keys(this.globalSubjects).sort();
-            for (let iSubject in subjects) {
-               const item = document.createElement("sp-menu-item");
-               item.textContent = subjects[iSubject];
-               menu.appendChild(item);
-            }
+         let menu = el.dropMenu;
+         let subjects = Object.keys(this.globalSubjects).sort();
 
-            menu.appendChild(document.createElement("sp-menu-divider"));
+         // purge the globalSubjects of any subjects that are also persons
+         // This occurs when there is a person name in a subjects of a photo that but there is no person rectangle for them.
 
-            let personNames = Object.keys(this.personsDict).sort();
-            for (let i = 0; i < personNames.length; i++) {
-               const item = document.createElement("sp-menu-item");
-               item.textContent = personNames[i];
-               menu.appendChild(item);
+         for (let iSubject in subjects) {
+            if (this.personsDict[subjects[iSubject]] != undefined) {
+
+               delete this.globalSubjects[subjects[iSubject]];
             }
          }
-         await enableButtons();
+
+         // populate the drop down list with non person subjects, a divider and then persons
+
+         subjects = Object.keys(this.globalSubjects).sort();
+         const item0 = document.createElement("sp-menu-item");
+         item0.textContent = "Everyone";
+         menu.appendChild(item0);
+         for (let iSubject in subjects) {
+            const item = document.createElement("sp-menu-item");
+            item.textContent = subjects[iSubject];
+            menu.appendChild(item);
+         }
+
+         menu.appendChild(document.createElement("sp-menu-divider"));
+
+         let personNames = Object.keys(this.personsDict).sort();
+         personNames.forEach((x) => {
+            const item = document.createElement("sp-menu-item");
+            item.textContent = x;
+            menu.appendChild(item);
+         });
       }
+      await enableButtons();
+
    };
 
-   /** If the selected filterKeyword from the drop box is "" then use the this.personsDict as the source of the names to GIF. 
+   /** If the selected filterKeyword from the drop box is "" or "Everyone" then use the this.personsDict as the source of the names to GIF. 
   * If the selected filterKeyword is in globalSubjects, then use all of the names for filterKeyword in the this.globalSubjects.
   * If the selected filtereyword is only in the personsDict, GIF only that person.
   * 
@@ -251,12 +256,12 @@ class Gifs {
       };
 
       // There are 3 cases, 
-      // 1) no dropDown list item has been selected, therefore GIF every person
+      // 1) no dropDown list item has been selected or Everyone selected, therefore GIF every person
       // 2) a global subject has been selected, GIF every person who has that global subject in at least one file
       // 3) a person's name has been selected, only GIF that one person     
 
 
-      if (filterKeyword == "")
+      if (filterKeyword == "" || filterKeyword == "Everyone")
          return newDict;  // GIF everyone
 
       /** newDict2 has the same structure as newDict, but only includes people who have the filterKeyword in one of their photos */
@@ -272,9 +277,11 @@ class Gifs {
          return newDict2; // GIF those with the global subject
       }
 
+      // GIF only one person
+
       if (this.personsDict[filterKeyword] != undefined)
          newDict2[filterKeyword] = newDict[filterKeyword];
-      return newDict2; // GIF onlyh one person
+      return newDict2;
    };
 
    /** Run the gifmaker. If the folder tree has not been scanned, then create an index
@@ -384,8 +391,6 @@ class Gifs {
 
          const resultsFolder = await this.gifEntry.createFolder("results");
          await writeErrors(resultsFolder, this.savedMetaData);
-         // await writePersons(resultsFolder, this.personsDict);
-         // await writeGlobalSubjects(resultsFolder, this.globalSubjects, this.globalFiles);
          await enableButtons();
       }
    };
@@ -410,11 +415,12 @@ class Gifs {
          if (entry.isFolder) {
             await this.recurseIndex(entry);
          } else {
+
             ////////////////////   PAYLOAD START   /////////////////////   
-            let [persons, subjects, metaDataErrors, exiftool] = readPersonsFromMetadata(entry);  // persons in the file, with the subject subjects for each person
-            this.savedMetaData[entry.nativePath] = { "persons": persons, "subjects": subjects, "metaDataErrors": metaDataErrors, "exiftool": exiftool };
+            let [persons, subjects, html, cmd, regionNames] = readPersonsFromMetadata(entry);  // persons in the file, with the subject subjects for each person
+            this.savedMetaData[entry.nativePath] = { "persons": persons, "subjects": subjects, "html": html, "cmd": cmd, "regionNames": regionNames };
+            ////////////////////   PAYLOAD END   /////////////////////    
          }
-         ////////////////////   PAYLOAD END   /////////////////////    
       }
    };
 

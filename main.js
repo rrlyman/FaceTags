@@ -17,7 +17,7 @@ const { Gifs } = require("./tagGif.js");
 // ################################  GLOBAL VARIABLES ##################################
 
 /** if true the current operation is cancelled. */
-let stopFlag = false;   
+let stopFlag = false;
 
 /** Suffix to append to the target folder name saving the generated GIF files. */
 const gifSuffix = "-gifs";
@@ -48,12 +48,12 @@ const runningList = [];
 const notRunningList = [];
 
 /** el is a directory of all the elements in the html document */
-const el={};
+const el = {};
 
 const elements = Array.from(document.querySelectorAll("*"));
 elements.forEach((element) => {
     if (element.id != null && element.hasAttributes()) {
-        el[element.id]=document.getElementById(element.id);
+        el[element.id] = document.getElementById(element.id);
         if (element.attributes.getNamedItem("running") != null)
             runningList.push(element.id);
         else
@@ -316,7 +316,7 @@ let progressbar = {
      * 
      */
     async incVal() { await this.setVal(this.iVal + 1) },
-    
+
     /** Fill in the progress bar with a new value;
      * 
      * @param {*} val Value to put in the progress bar in the range [0,max]
@@ -341,11 +341,11 @@ let progressbar = {
  */
 async function xModal(x1, x2) {
     try {
-        return core.executeAsModal(x1, x2).catch((reason) => { 
-            console.log(x2); 
-            console.log(reason) ;
-            throw reason;            
-        });        
+        return core.executeAsModal(x1, x2).catch((reason) => {
+            console.log(x2);
+            console.log(reason);
+            throw reason;
+        });
     } catch (e) {
         // find programming errors 
         alert(e + JSON.stringify(x2));

@@ -1,7 +1,8 @@
 
 // copywrite 2023-2024 Richard R. Lyman
 
-const { errorLog, capitalize } = require("./tagUtils.js");
+const { errorLog, capitalize, deleteUndefines } = require("./tagUtils.js");
+
 function isSameArea(mwgRect, mpRect) {
 
     for (let i = 0; i < 4; i++) {
@@ -11,81 +12,47 @@ function isSameArea(mwgRect, mpRect) {
     }
     return true;
 };
-function nmb(rect) {
-    for (let i = 0; i < 4; i++) {
-
-        rect[i] = Number(rect[i]);
-        if (rect[i] == undefined || rect[i] == null) {
-            return null;
-        }
-    }
-    return rect;
-};
-
-
-function isNum(rect) {
-    let isOK = true;
-    for (let i = 0; i < 4; i++) {
-        if (typeof rect[i] != "number") {
-            return false;
-        }
-    }
-    return true;
-};
-
-
-function isOK(x) {
-    let ok = true;
-    if (x == undefined || x == null)
-        ok = false;
-    else {
-        x.forEach((t) => {
-            if (t == undefined || t == null)
-                ok = false;
-        });
-    }
-    return ok;
-}
-
-function isRegionOK(rgn) {
-    let ok = true;
-    rgn.forEach((person) => {
-        if (!isOK([person.name, person.rect, isOK(person.rect)]))
-            ok = false;
-    });
-    return ok;
-}
-
-function isRegionsOK(rgns) {
-    let ok = true;
-    rgns.forEach((rgn) => {
-        if (!isRegionOK(rgn))
-            ok = false;
-    });
-    return rgns.length > 0;
-}
-
-const warn = [
-    "If a Adobe region has a mwgRectangle but is missing a name but the Microsoft regions contains the identical mwgRectangle, then write over the Adobe region name with the name from Microsoft regions.",
-    "If a Microsoft region has a mwgRectangle but is missing a name but the Adobe regions contains the identical mwgRectangle, then write over the Microsoft region name with the name from Adobe regions.",
-    "If both Microsoft region and Adobe region have the same name, but the mwgRectangles are not identical, then replace the mwgRectangle in the Microsoft region with the one from the Adobe region.",
-    "If an Adobe region has a name that does not appear in the Subject list, the add the name to the Subject list.",
-    "If the Microsoft regions contains a name that is not in the mwpRegions and there are no identical mwgRectangles, the copy the Microsoft region to the Adobe regions."
-];
 
 function tagFile(nativePath) {
-    const dotIndex = nativePath.lastIndexOf(".");
     let str = nativePath;
     str = "-m \"" + nativePath + "\"   ";
     return str;
 }
-function hasStr(xArray, str) {
-    let hasIt = false
-    xArray.forEach((x) => {
-        if (x.toLowerCase() == str.toLowerCase()) hasIt = true;
-    })
-    return hasIt;
-};
+
+function noDifs(subjects) {
+    let z = [];
+    subjects.forEach((x) => {
+        if (x != undefined)
+            z.push(x)
+    });
+    return z;
+}
+
+function refreshSubjects(entry, html, cmd, regions, subjects) {
+    if (regions != undefined) {
+        regions.forEach((region) => {
+            if (region.name != undefined) {
+                if (!noDifs(subjects).includes(region.name)) {
+                    errorLog(html, cmd,
+                        "WARNING 03: \"" + region.name + "\" is in MWG mwgRectangle but is not in dc:subject. Copy the name to the keywords and Subject",
+                        "exiftool  -Keywords-=\"" + region.name + "\" -Subject-=\"" + region.name + "\"  -Subject+=\"" + region.name + "\" -Keywords+=\"" + region.name + "\" " + tagFile(entry.nativePath));
+                }
+            }
+        });
+    }
+}
+
+function regionInfoStruc(mRegions, appliedToWidth, appliedToHeight) {
+    let str = "{AppliedToDimensions={H=" + appliedToHeight + ", Unit=pixels, W=" + appliedToWidth + "} , RegionList=[";
+    let x = [];
+    for (i in mRegions) {
+        const mRegion = mRegions[i];
+        const rect = mRegion.rect;
+        x = x.concat("{ Area={ H=" + rect[3].toFixed(4) + ", W=" + rect[2].toFixed(4) + ", X=" + rect[0].toFixed(4) + ", Y=" + rect[1].toFixed(4) + "}, Name=" + mRegion.name + ", Rotation=0.000000, Type=Face } ");
+    };
+    return str + x.join(", ") + "]}";
+}
+
 /**
  * 
  * @param {*} mwgRegions Array from mwg-rs:Regions
@@ -93,133 +60,60 @@ function hasStr(xArray, str) {
  * @param {*} mpRegions Array from Microsoft MP:RegionInfo
  * @returns html array of strings containing errors.
  */
-function checkProperties(entry, mwgRegions, subjects, mpRegions) {
+function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth, appliedToHeight) {
 
-    /*
-    things to check later
-    After reading all of the photos, for each file, if there is a name in subject that is found in a list of all person names from the Adobe regions in all files, but it is not in the Adobe regions
-    in the file, then delete it from the global subject list. 
-
-*/
     let html = [];
     let cmd = [];
-    let onlyOne = true;
 
-    const mwgOK = isRegionOK(mwgRegions);
-    const mpOK = isRegionOK(mpRegions);
-
-    if (mwgOK && mpOK && mpRegions.length > 0) {
+    if (mwgRegions.length == 0 && mpRegions.length > 0) {
         errorLog(html, cmd,
-            "WARNING 01: There are Microsoft regions but no Adobe regions. Copy all the valid Microsoft regions to the Adobe regions.",
+            "WARNING 02: There are Microsoft regions but no Adobe regions. Copy all the valid Microsoft regions to the Adobe regions.",
             'exiftool -config facetags.config  -RegionInfo<MPRegion2MWGRegion ' + tagFile(entry.nativePath));
-
-        if (mwgOK && !mpOK && mwgRegions.length > 0) {
-            errorLog(html, cmd,
-                "WARNING 02: There are Adobe regions but no Microsoft regions. Copy all the valid Adobe regions to the Microsoft regions.",
-                'exiftool -config facetags.config  -RegionInfoMP<MWGRegion2MPRegion ' + tagFile(entry.nativePath));
-        }
-    }
-    for (let i = mwgRegions.length - 1; i >= 0; i--) {
-        const mwgRegion = mwgRegions[i];
-
-        if (!isOK(mwgRegion.rect)) {
-
-            if (mpOK) {
-                errorLog(html, cmd,
-                    "ERROR 01: \"" + mwgRegion.name + "\" is in an MWG RegionList but there is no x,y,w,h mwgRectangle information. Copy the person from the Microsoft Region",
-                    'exiftool -config facetags.config  -RegionInfo<MPRegion2MWGRegion ' + tagFile(entry.nativePath));
-            }
-        }
-        // I am deleting this for now because it is goo dangerous
-
-        // if (!isOK([mwgRegion.name])) {
-        //     errorLog(html, cmd, "WARNING 03: There is an MWG mwgRectangle, without a NAME in a MWG region. Delete the unnamed Area", "");
-
-        //     // NOTE:  to remove an entire structure, remove each item in the structure.  The reason, the elements of the structure are presented
-        //     // as a FLATTENED list, i.e. an array for each member of the schema 
-
-        //     errorLog(html, cmd, "", "exiftool -listItem " + i + " -RegionAreaW-<RegionAreaW   " + tagFile(entry.nativePath)");
-        //     errorLog(html, cmd, "", "exiftool -listItem " + i + " -RegionAreaH-<RegionAreaH   " + tagFile(entry.nativePath)");
-        //     errorLog(html, cmd, "", "exiftool -listItem " + i + " -RegionAreaX-<RegionAreaX   " + tagFile(entry.nativePath)");
-        //     errorLog(html, cmd, "", "exiftool -listItem " + i + " -RegionAreaY-<RegionAreaY   " + tagFile(entry.nativePath)");
-        //     errorLog(html, cmd, "", "exiftool -listItem " + i + " -RegionAreaW-<RegionAreaW   " + tagFile(entry.nativePath)");
-        //     errorLog(html, cmd, "", "exiftool -listItem " + i + " -RegionAreaUnit-<RegionAreaUnit   " + tagFile(entry.nativePath)");
-        //     errorLog(html, cmd, "", "exiftool -listItem " + i + " -RegionRotation-<RegionRotation   " + tagFile(entry.nativePath)");
-        //     errorLog(html, cmd, "", "exiftool -listItem " + i + " -RegionType-<RegionType   " + tagFile(entry.nativePath)");
-
-        // } else 
-        if (isOK([mwgRegion.name]) && !hasStr(subjects, mwgRegion.name)) {
-
-            errorLog(html, cmd,
-                "WARNING 04: \"" + mwgRegion.name + "\" is in MWG mwgRectangle but is not in dc:subject. Copy the name to the keywords and Subject",
-                "exiftool  -Keywords-=\"" + mwgRegion.name + "\" -Keywords+=\"" + mwgRegion.name + "\" " + tagFile(entry.nativePath));
-            errorLog(html, cmd, "", "exiftool -Subject-=\"" + mwgRegion.name + "\"  -Subject+=\"" + mwgRegion.name + "\" " + tagFile(entry.nativePath));
-        }
-
-
+        refreshSubjects(entry, html, cmd, mpRegions, []);
     };
 
-    for (let x in mpRegions) {
-        let mpRegion = mpRegions[x];
-        let missingPerson = true;
-        if (!isOK([mpRegion.rect]))
-            continue;
-        let mpRect = mpRegion.rect;
-        mpRect = [mpRect[0] + (mpRect[2] / 2), mpRect[1] + (mpRect[3] / 2), mpRect[2], mpRect[3]];
+    refreshSubjects(entry, html, cmd, mwgRegions, subjects);
 
-        mwgRegions.forEach((mwgRegion) => {
+    // deletes quotation marks that are in the subject name
+    let done = false;
+    subjects.forEach((subject) => {
+        if ((!done) && subject.includes("\"")) {
+            done = true;
+            errorLog(html, cmd,
+                "WARNING 04: Subject, \"" + subject + "\" contains quotation marks. Remove them",
+                "exiftool -TagsFromFile @ -api 'Filter=s/\\\"//g'  -Keywords=  " + tagFile(entry.nativePath));
+            errorLog(html, cmd,
+                "",
+                "exiftool -TagsFromFile @ -api 'Filter=s/\\\"//g'   -Subject=  " + tagFile(entry.nativePath));
+            refreshSubjects(entry, html, cmd, mwgRegions, []);
+        }
+    });
 
-            const mwgRect = nmb(mwgRegion.rect);
 
-            if (mwgRect != null) {
+    // if there is an  unidentified rectangle (has a ? for a name), and the name is in the Microsoft rectangles, than add it back in.
+    let newNames = [];
 
-                if ((mpRegion.name.toLowerCase() == mwgRegion.name.toLowerCase())) {
-                    missingPerson = false;
+    for (let i in mwgRegions) {
 
-                    if (!isSameArea(mwgRect, mpRect)) {
-                        errorLog(html, cmd, "WARNING 05: The MP mwgRectangle " + JSON.stringify(mpRect) + " for person \"" + mwgRegion.name +
-                            "\" does not line up with MWG mwgRectangle [" + JSON.stringify(mwgRect) + "]",
-                            'exiftool -config facetags.config  \"-RegionInfoMP<MWGRegion2MPRegion\" ' + tagFile(entry.nativePath));
+        for (let k in mpRegions) {
 
-                    }
-                }
-
-                if ((mpRegion.name.toLowerCase() != mwgRegion.name.toLowerCase()) && isSameArea(mwgRect, mpRect)) {
-                    // "If a Adobe region has a mwgRectangle but is missing a name but the Microsoft regions contains the identical mwgRectangle, then write over the Adobe region name with the name from Microsoft regions.",
-
-                    errorLog(html, cmd,
-                        "WARNING 06: The MP mwgRectangle " + JSON.stringify(mpRect) + " for mpRegion \"" + mpRegion.name + " " + JSON.stringify(mwgRect) +
-                        "\" has a different name, " + mwgRegion.name + " in the MWGRegion. Transfer the name from the Adobe region to the Microsoft region.",
-                        "exiftool   -RegionPersonDisplayName+=\"" + mwgRegion.name + "\" -RegionPersonDisplayName-=\"" + mpRegion.name + "\"  " + tagFile(entry.nativePath));
-
-                    missingPerson = false; // because we may have fixed the missing person.
+            if (isSameArea(mwgRegions[i].rect, mpRegions[k].rect)) {
+                if ((mwgRegions[i].name == undefined || mwgRegions[i].name.length == 0) && (mpRegions[k].name != undefined && mpRegions[k].name.length != 0)) {
+                    mwgRegions[i] = mpRegions[k];
+                    newNames.push(mpRegions[k].name);
                 }
             }
         }
-        );
-
-        if (missingPerson) {
-
-            errorLog(html, cmd, "WARNING 07: Person, \"" + mpRegion.name + "\" is in Microsoft Region but not in MWG RegionList",
-                'exiftool -config facetags.config  \"-RegionInfo<MPRegion2MWGRegion\" ' + tagFile(entry.nativePath));
-
-        }
     }
+    if (newNames.length > 0) {
 
-    // subjects.forEach((subject) => {
-    //     missingPerson = true;
-    //     mwgRegions.forEach((mwgRegion) => {
-    //         if (mwgRegion.name != undefined && mwgRegion.name == subject)
-    //             missingPerson = false;
-    //     });
+        errorLog(html, cmd,
+            "WARNING 05: The Microsoft rectangle for \""+newNames.join(", and ")+"\" " +
+        "is missing from the matching Adobe rectangle. Transfer the name from the Microsoft region to the Adobe region.",
+            "exiftool   -RegionInfo=\"" + regionInfoStruc(mwgRegions, appliedToWidth, appliedToHeight) + "\"  " + tagFile(entry.nativePath));
 
-    //     if (missingPerson && mwgRegions.length == 1 && mwgRegions[0].name == undefined) {
-
-    //         errorLog(html, cmd, "WARNING 08: Person, \"" + subject + "\" is in subjects but not in MWG RegionList. Stick it in the Adobe mwgRegion",
-    //             'exiftool -listItem 0 -RegionName+=\"' + subject + '\" ' + tagFile(entry.nativePath));
-    //     }
-
-    // });
+        refreshSubjects(entry, html, cmd, mwgRegions, []);
+    }
 
     return [html, cmd];
 };
@@ -228,25 +122,26 @@ function parseString(str) { if (str == undefined || str == null) return undefine
 
 
 /**
- * Picks up the metadaa for the photo, parses it to find the People in Metadata Working Group format
+ * Picks up the metadata for the photo, parses it to find the People in Metadata Working Group format
  *  
  * @param {*} entry // File entry of file to extract metadata. If null, use the Photoshop metadata instead of xmpFile
  * @returns  [persons, subjects] directory of persons in the photo metadata and the subject subjects
  */
 
 function readPersonsFromMetadata(entry) {
-    if (entry != null && entry.name.includes("scan0737.jpg")) {
+    if (entry != null && entry.name.includes("Scan-150209-0043")) {
         let k = 5;
     }
 
     let persons = [];
-    let subjects = [];
+    let subjects = new Set();
+    let regionNames = new Set();
 
     let mpRegions = [];
     let mwgRegions = [];
     let dcSubjects = [];
     let html = [];
-    let exiftool = [];
+    let cmd = [];
 
     let lastDate = "2021-09-15T00:22:20";
 
@@ -291,7 +186,7 @@ function readPersonsFromMetadata(entry) {
         const dateModified = parseString(xmpMeta.getProperty(xmpConstants.NS_XMP, "xmp:ModifyDate"));
 
         for (let i = 1; xmpMeta.getProperty(MP, "MP:RegionInfo/MPRI:Regions[" + i + "]") != undefined; i++) {
-            let rect = parseString(xmpMeta.getProperty(MP, "MP:RegionInfo/MPRI:Regions[" + i + "]/MPReg:mwgRectangle"));
+            let rect = parseString(xmpMeta.getProperty(MP, "MP:RegionInfo/MPRI:Regions[" + i + "]/MPReg:Rectangle"));
             const personDisplayName = capitalize(parseString(xmpMeta.getProperty(MP, "MP:RegionInfo/MPRI:Regions[" + i + "]/MPReg:PersonDisplayName")));
 
             if ((rect == undefined))
@@ -301,8 +196,8 @@ function readPersonsFromMetadata(entry) {
                 const mpRegion = {
                     "name": personDisplayName,
                     "rect": [
-                        Number(rect[0]),  // x top left coordinate in the original uncropped photo
-                        Number(rect[1]),  // y top left coordinate in the original uncropped photo
+                        Number(rect[0]) + Number(rect[2]) / 2,  // x top left coordinate in the original uncropped photo
+                        Number(rect[1]) + Number(rect[3]) / 2,  // y top left coordinate in the original uncropped photo
                         Number(rect[2]),
                         Number(rect[3])],
                     "rectType": "Face",
@@ -342,7 +237,7 @@ function readPersonsFromMetadata(entry) {
 
         }
 
-        [html, exiftool] = checkProperties(entry, mwgRegions, dcSubjects, mpRegions);
+        [html, cmd] = checkProperties(entry, mwgRegions, dcSubjects, mpRegions, appliedToWidth, appliedToHeight);
 
         //////////////////////////////  fix up values ////////////////////////////
 
@@ -378,7 +273,7 @@ function readPersonsFromMetadata(entry) {
             lastDate = dateTaken;
             let javascriptDate = new XMPDateTime(dateTaken).getDate();
 
-            dcSubjects.forEach((dcSubject) => { subjects.push(dcSubject) });
+            dcSubjects.forEach((x) => { subjects.add(x) });
 
             mwgRegions.forEach((mwgRegion) => {
 
@@ -392,6 +287,7 @@ function readPersonsFromMetadata(entry) {
                     "dateTaken": javascriptDate,
                 };
                 persons.push(person);
+
             })
         }
 
@@ -402,7 +298,11 @@ function readPersonsFromMetadata(entry) {
     if (xmpFile != null)
         xmpFile.closeFile(0);
 
-    return [persons, subjects, html, exiftool];
+    persons = deleteUndefines(persons);
+    persons.forEach((person) => {
+        regionNames.add(person.name);
+    });
+    return [persons, subjects, html, cmd, regionNames];
 
 };
 

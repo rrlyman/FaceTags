@@ -38,23 +38,36 @@ function skipThisEntry(entry) {
  * @param {string} txt The text to be concatenated to the html array.
  * @param {string} exiftoolText The tex to be cancatenated tot he exiftool array.
  */
-function errorLog(htmlArray, exiftoolArray, txt, exiftoolText) {
+function errorLog(html, cmd, txt, exiftoolText) {
 
-    if (txt.length > 0) {
-        htmlArray.push("\r\n" + txt);
-        if (exiftoolText.length > 0)
-            exiftoolArray.push("echo " + txt);
-    }
+    html.push({ "txt": txt, "exif": exiftoolText });
+    if (txt.length > 0)
+        cmd.push("echo " + txt);
+    if (exiftoolText.length > 0)
+        cmd.push("echo " + exiftoolText);
+    cmd.push(exiftoolText);
 
-    if (exiftoolText.length > 0) {
-        htmlArray.push("Recommend: " + exiftoolText);
-        exiftoolArray.push("echo " + exiftoolText);
-        exiftoolArray.push(exiftoolText);
-    }
 }
 
 const tabs = "&nbsp;&nbsp;&nbsp;&nbsp;"
+/** make a dictionary of unique Warnings containing an array of files and exif commands for that warning 
+ * 
+ * @param {*} savedMetaData 
+ * @returns a dictionary indexed by the warning text containing an array of files and exif commands for that warning 
+ */
+function queryWarning(savedMetaData) {
+    let warningDB = {};
+    for (let nativePath in savedMetaData) {
+        savedMetaData[nativePath].html.forEach((x) => {
+            console.log(x.txt);
+            console.log(" " + x.exif);
+            if (warningDB[x.txt] == undefined) warningDB[x.txt] = [];
+            warningDB[x.txt].push({ "nativePath": nativePath, "exif": x.exif });
+        });
+    }
 
+    return warningDB;
+};
 /** Create an errors.html and recommended.bat files
  * 
  * @param {entry} errorFolder Folder entry to place the files into
@@ -72,137 +85,85 @@ async function writeErrors(errorFolder, savedMetaData) {
 
     let html = [];
     html.push('<!DOCTYPE html><html id="html"><head>');
+    html.push("<title>Metatdata Warnings</title>");
 
     html.push("</head > <body>");
 
     const warning = [
-        "MAJOR ALERT: The \"Recommendations.bat\" file may make changes to the metadata in your photos.",
-        "\"Recommendations.bat\" uses \"exiftool\" that must be installed somewhere in the path in your system.",
-        "The program, \"exiftool\", will leave the original files untouched with an added extension \"_original\" so you can alway get back the originals.",
-        "However, the \"exiftool\" commands should only be tried on a temporary copy of your photo tree, until you are 100% satisfied with the results",
-        "before trying them on your original photos.",
-        " "
-    ];
+        "MAJOR ALERT: The \"Recommendations.bat\" file will make changes to the metadata in your photos.  " +
+        "Recommendations.bat\" uses \"exiftool\" that must be installed somewhere in the path in your system.  " +
+        "For instance, " +
+        "<ol>" +
+        " <li>download exiftool(-k)</li>" +
+        "<li>rename it as exiftool.exe</li>" +
+        "<li>stick it in your Windows folder.</li>" +
+        "</ol>",
+        "The program, \"exiftool\", will leave the original files untouched with an added extension \"_original\" so you can always get back the originals.",
+        "However, the \"exiftool\" commands should only be tried on a temporary copy of your photo tree, until you are 100% satisfied with the results " +
+        "before trying them on your original photos.  ",
+        "The recommendations fix up the following:" +
+        "<ul>" +
+        "<li>Convert from the Microsoft face recognition metadata format to the Metadata Working Group standard used by Adobe.</li>" +
+        "<li>Fix people keywords that have in advertantly been left on photos without that person in the photo.</li>" +
+        "<li>Fix non person keywords, such as \"cars\" that has been mistakenly placed in a face recognition rectangle.</li>" +
+        "<li>Fix photos, where there is a face recognized, i.e. it has a face detection rectangle and a name entered for that person, but the keyword is missing from the \"keywording\" list</li>" +
+        "<li>Make a list of the non person keywords, shown in this file, so you can check it for accuracy. If there are no recommendations shown at the bottom of this file, " +
+        "then there were no global keywords detected and all keywords and face data are in agreement. </li>" +
+        "</ul>" +
+        "This plugin and Lightroom Classic communicate through the metadata in the files on the hard drive.  Lightroom Classic has a database that must be transferred to the metadata " +
+        "on the hard drive.  The metadata is then read by this Potoshop plugin to create the \"recommendations.bat\" file. " +
+        "The metatdata is updated by the exiftool commands in \"recommendations.bat\" and then is reread back into Lightroom Classic.",
+        "<ol>" +
+        "<li>Make sure that metadata on the hard drive corresponds to the Lightroom Classic database.  Sync on Lightroom Classic does not work for face detection rectangles. " +
+        "Save Metadata to files does not work on face detection rectangles. \"Export as catalog\" does not work on face detection rectangles. Exporting a single file does work. " +
+        "The easiest workaround is in Lightroom Classic:</li>" +
+        "<ol type=\"A\">" +
+        "<li>Click on the top of the photo tree on local hard drive on the left side of the Lightroom Classic screen. </li>" +
+        "<li>In the library grid view select all the photos." +
+        "<li>Very carefully, working only on a backup copy of your photos, add a keyword such as \"x\" at the bottom of the keywords in \"Keywording\" in the top right of the screen. " +
+        " If the setting to automatically update xmp metadata has been enabled, Lightroom Classic will update all the metadata on the hard drive.</li> " +
+        "<li>In the keyword list, select \"x\" and choose \"delete\". Lightroom Classic will again write all metadata to the hard drive.</li> " +
+        "</ol> " +
+        "<li>Run the Recommendations.bat.  To get a record of the results, in a terminal window type \"./recommendations.bat > results.log\"." +
+        "<li>Get the metadata back into Lightroom Classic.  Since Sync does not work, select all the photos and from the menu, \"Read Metadata from files\" </li>" +
+        "</ol>"];
 
-    html.push("<div>" + warning.join("</div><div>") + "</div>");
+    html.push("<h1> Metadata Warnings </h1>");
+    html.push("<p>" + warning.join("</p><p>") + "</p>");
 
-    for (fileName in savedMetaData) {
+    // create a database indexed by the warning message.
 
-        //list a file and and all people, subjects, and errors in the file
-        if (savedMetaData[fileName].metaDataErrors.length > 0) {
-            html.push("<p>");
+    let warningDB = queryWarning(savedMetaData);
+    for (let warning in warningDB) {
+      
+        html.push("<div> " + htmlEntities(warning) + "</div>");
+        html.push('<p style="margin-left: 25px;">');
+
+        warningDB[warning].forEach((x) => {
+            let fileName = x.nativePath;
             let fname = fileName.replaceAll("\"", "/").replaceAll(" ", "%20");
-            html.push("<a href=\"file://" + fname + "\" >" + fileName + "</a> ");
+            html.push("<a href=\"file://" + fname + "\" >" + fileName + "</a><br> ");
+            if (x.exif.length > 0)
+                html.push("Recommend: " + htmlEntities(x.exif)+"<br>");
 
-            savedMetaData[fileName].metaDataErrors.forEach((error) => {
-                html.push("<div> " + tabs + htmlEntities(error) + "</div>");
-
-            });
-        };
+        });
         html.push("</p>");
-    };
+    }
+
     html.push("</body> </html>");
-    
-    const errorFile = await errorFolder.createFile("Errors.html");
+
+    const errorFile = await errorFolder.createFile("Readme1st.html");
     await errorFile.write(html.join(" "), { append: true });
 
-    const exifFile = await errorFolder.createFile("recommendations_run_once.bat");
-    await exifFile.write("echo  " + warning.join(" ") + "\r\n", { append: false });
+    let pc = ["echo  " + warning.join(" ")];
 
-    for (fileName in savedMetaData) {
-        await savedMetaData[fileName].exiftool.forEach((exif) => {
-            exifFile.write(exif.replaceAll("<", "^<") + "\r\n", { append: true });
-        });
-    }
-    await exifFile.write("del facetags.config\r\n", { append: true });
-    await exifFile.write("del recommendations_run_once.bat\r\n", { append: true });    
-};
+    for (let fileName in savedMetaData)
+        savedMetaData[fileName].cmd.forEach((x) => { pc.push(x.replaceAll("<", "^<")) });
 
-async function writePersons(resultsFolder, personsDict) {
-    const personsFolder = await resultsFolder.createFolder("People Results");
-    let sortedDict = Object.keys(personsDict).sort();
-
-    let html = [];
-    html.push('<!DOCTYPE html><html id="html"><head>');
-
-    html.push("</head > <body>");
-    for (x in sortedDict) {
-        // console.log(sortedDict[x]);
-
-        let persons = personsDict[sortedDict[x]];
-
-        if (persons != undefined) {
-
-            let html2 = [];
-            html2.push('<!DOCTYPE html><html id="html"><head>');
-            html2.push("</head > <body>");
-
-            persons.forEach((person) => {
-                let fname = person.entry.nativePath.replaceAll("\"", "/").replaceAll(" ", "%20");
-                html2.push("<div> " + tabs + "<a href=\"file://" + fname + "\" >" + person.entry.name + " \r\n</a></div> ");
-            });
-
-            html2.push("</body> </html>");
-            const html2File = await personsFolder.createFile(sortedDict[x] + ".html");
-            await html2File.write(html2.join(" "), { append: true });
-
-            let fname = html2File.nativePath.replaceAll("\"", "/").replaceAll(" ", "%20");
-            html.push("<div> " + tabs + "<a href=\"file://" + fname + "\" >" + sortedDict[x] + "</a></div> ");
-
-        }
-    };
-
-    html.push("</body> </html>");
-    const htmlFile = await resultsFolder.createFile("People.html");
-    await htmlFile.write(html.join(" "), { append: true });
+    const exifFile = await errorFolder.createFile("recommendations.bat");
+    await exifFile.write(pc.join("\r\n"), { append: false });
 
 };
-
-
-async function writeGlobalSubjects(resultsFolder, globalSubjects, globalFiles) {
-
-    const subjectsFolder = await resultsFolder.createFolder("Keyword Results");
-    let sortedDict = Object.keys(globalSubjects).sort();
-
-    let html = [];
-    html.push('<!DOCTYPE html><html id="html"><head>');
-
-    html.push("</head > <body>");
-    for (x in sortedDict) {
-        // console.log(sortedDict[x]);
-        let subjects = globalSubjects[sortedDict[x]];
-
-        if (subjects != undefined) {
-
-            let html2 = [];
-            html2.push('<!DOCTYPE html><html id="html"><head>');
-            html2.push("</head > <body>");
-
-            subjects.forEach((person) => {
-                // console.log(person);
-                if (person != undefined) {
-                    // let fname = person.entry.nativePath.replaceAll("\"", "/").replaceAll(" ", "%20");
-                    html2.push("<div>" + person + " </div> ");
-                }
-            });
-
-            html2.push("</body> </html>");
-            const html2File = await subjectsFolder.createFile(sortedDict[x] + ".html");
-            html2File.write(html2.join(" "), { append: true });
-
-            let fname = html2File.nativePath.replaceAll("\"", "/").replaceAll(" ", "%20");
-            html.push("<div> " + tabs + "<a href=\"file://" + fname + "\" >" + sortedDict[x] + "</a> </div>");
-
-        }
-    };
-
-    html.push("</body> </html>");
-    const htmlFile = await resultsFolder.createFile("Keywords.html");
-    await htmlFile.write(html.join(" "), { append: true });
-
-};
-
-
 
 
 /**
@@ -298,6 +259,49 @@ function removeIllegalFilenameCharacters(str) {
     return capitalize(fileName);
 };
 
+function deleteUndefines(array) {
+    let newArray = [];
+    array.forEach((a) => {
+        let ok = true;
+        Object.keys(a).forEach((key) => {
+            if (a[key] == undefined) {
+                ok = false;
+            }
+        });
+        if (ok) newArray.push(a);
+    });
+    return newArray;
+};
+
+function addSetFunctions(set) {
+
+    Set.prototype.union = function (set2) {
+        let newSet = this;
+        set2.forEach((x) => { newSet.add(x) });
+        return newSet
+    }
+
+    Set.prototype.intersection = function (set2) {
+        let newSet = new Set();
+        this.forEach((x) => {
+            if (set2.has(x)) {
+                console.log("intersect " + x)
+                newSet.add(x);
+            }
+        });
+        return newSet;
+    };
+    Set.prototype.difference = function (set2) {
+        let newSet = new Set();
+        this.forEach((x) => {
+            if (!set2.has(x))
+                newSet.add(x);
+        });
+        return newSet;
+    };
+}
+
+
 module.exports = {
-    getFaceTagsTreeName, skipThisEntry, countFiles, writeErrors, writePersons, writeGlobalSubjects, removeIllegalFilenameCharacters, errorLog, capitalize
+    getFaceTagsTreeName, skipThisEntry, countFiles, writeErrors, removeIllegalFilenameCharacters, errorLog, capitalize, deleteUndefines, addSetFunctions
 };

@@ -2,7 +2,7 @@
 // copywrite 2023 Richard R. Lyman
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
 const { setOutsideStroke, makeAPortrait } = require("./tagBatchPlay.js");
-const { getFaceTagsTreeName, skipThisEntry, countFiles, createResultsFolder } = require("./tagUtils.js");
+const { getFaceTagsTreeName, skipThisEntry, countFiles, writeErrors } = require("./tagUtils.js");
 
 
 class Tags {
@@ -30,8 +30,9 @@ class Tags {
     async openAndTagFileFromDisk(entry) {
         if (skipThisEntry(entry)) // skip over unsupported photo file types
             return false;
-        let [persons, subjects, metaDataErrors, exiftool] = readPersonsFromMetadata(entry);
-        this.savedMetaData[entry.nativePath] = { "persons": persons, "subjects": subjects, "metaDataErrors": metaDataErrors, "exiftool": exiftool };
+        let [persons, subjects, html, cmd] = readPersonsFromMetadata(entry);
+
+        this.savedMetaData[entry.nativePath] = { "persons": persons, "subjects": subjects, "html": html, "cmd": cmd };
         if (persons.length == 0)
             return false;
         this.aDoc = null;
@@ -53,7 +54,7 @@ class Tags {
         this.aDoc = app.activeDocument;
         await disableButtons("Refreshing Labels");
         if (app.documents.length != 0) {
-            let [persons, subjects, metaDataErrors, exiftool] = readPersonsFromMetadata(null);
+            let [persons, subjects, html, cmd] = readPersonsFromMetadata(null);
             this.dontAsk = false;
 
             this.resetHistoryState(this.aDoc);        // start with clean document  
@@ -117,7 +118,7 @@ class Tags {
             await this.recurseBatchFiles(this.originalPhotosFolder, targetFolderEntry);
 
         }
-        await createResultsFolder(targetFolderEntry, this.savedMetaData);
+        await writeErrors(targetFolderEntry, this.savedMetaData);
         await enableButtons();
     };
 
@@ -181,12 +182,14 @@ class Tags {
         }
     };
 
+
     /** Create face labels for each person rectangle found in the document metadata
      *  
      * @param {[{personName, x, y, w, h}]} persons 
      * @returns 
      */
     async faceTagTheImage(persons) {
+
         if ((persons != undefined) && (persons.length <= 0)) {
             const fname = this.aDoc.path;
             const txt1 = "No face rectangles were found in the metadata of file  \'" + fname + "\'\.   ";
@@ -214,8 +217,10 @@ class Tags {
             let faceTagsGroup = await xModal(() => { return this.aDoc.createLayerGroup({ name: "FaceTags" }) }, { commandName: "AddingLayer" });
 
             for (let i = 0; (i < persons.length) && (!stopFlag); i++) {
+
                 await new Promise(r => setTimeout(r, 75));    // required to give time process Cancel Button             
                 await this.addLayer(persons[i], bestRect);
+
             }
 
             // squash all the artlayers into one "FaceTags" layer
@@ -255,6 +260,7 @@ class Tags {
     async addLayer_actn(person, bestRect) {
 
         let bnds = { "_left": person.x - bestRect.w / 2, "_top": person.y, "_bottom": person.y + bestRect.h, "_right": person.x + bestRect.w / 2 };
+
         let newLayer = await this.aDoc.createTextLayer({
             "name": person.name,
             bounds: bnds,
@@ -268,6 +274,7 @@ class Tags {
         newLayer.textItem.paragraphStyle.justification = constants.Justification.CENTER;
         newLayer.textItem.characterStyle.fauxBold = true;
         newLayer.textItem.characterStyle.color = gSettings.foreColor;
+
     };
     /**
      * Erase all edits by rewinding to the first history state.
@@ -295,27 +302,17 @@ class Tags {
         let avgWidth = 0.0;
         let avgHeight = 0.0;
         for (let i = 0; i < persons.length; i++) {
-            const personName = persons[i].name;
-            let x = persons[i].x;
-            let y = persons[i].y;
-            let w = persons[i].w;
-            let h = persons[i].h;
-            y = (y - gVertDisplacement * h);  	            // lower the rectangle below the chin by changing x,y to be the center of the top of the bounding box         
-            const widenAmt = 4;                             // inflate the rectangle, but clip to the width and height
-            w = Math.min(this.aDoc.width, widenAmt * w);		       // (x,y) is the center of the rectangle so they do not move during inflation or deflation.    
-            h = Math.min(this.aDoc.height, widenAmt * h);
 
-            avgWidth += (w / persons.length);		        // calculates out an average size for the text boxes
-            avgHeight += (h / persons.length);
-            let person = {
-                "name": personName,
-                "x": x,
-                "y": y,
-                "w": w,
-                "h": h
-            };
-            persons[i] = person;
+            persons[i].y = (persons[i].y - gVertDisplacement * persons[i].h);  	// lower the rectangle below the chin by changing x,y to be the center of the top of the bounding box   
+
+            const widenAmt = 4;                                                 // inflate the rectangle, but clip to the width and height
+            persons[i].w = Math.min(this.aDoc.width, widenAmt * persons[i].w);	// (x,y) is the center of the rectangle so they do not move during inflation or deflation.    
+            persons[i].h = Math.min(this.aDoc.height, widenAmt * persons[i].h);
+
+            avgWidth += (persons[i].w / persons.length);		                            // calculates out an average size for the text boxes
+            avgHeight += (persons[i].h / persons.length);
         };
+
         const rect = {
             "w": avgWidth,
             "h": avgHeight
