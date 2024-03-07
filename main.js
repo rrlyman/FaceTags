@@ -13,7 +13,12 @@ const { makeHelpDialogs } = require("./tagHelp.js");
 const { setForeground, setBackground } = require("./tagBatchPlay.js");
 const { Tags } = require("./tagFace.js");
 const { Gifs } = require("./tagGif.js");
-
+//persons, subjects, html,  cmd, regionNames
+const meta_persons = 0;
+const meta_subjects = 1;
+const meta_html = 2;
+const meta_cmd = 3;
+const meta_regionNames = 4;
 // ################################  GLOBAL VARIABLES ##################################
 
 /** if true the current operation is cancelled. */

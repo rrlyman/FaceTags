@@ -58,9 +58,9 @@ const tabs = "&nbsp;&nbsp;&nbsp;&nbsp;"
 function queryWarning(savedMetaData) {
     let warningDB = {};
     for (let nativePath in savedMetaData) {
-        savedMetaData[nativePath].html.forEach((x) => {
-            console.log(x.txt);
-            console.log(" " + x.exif);
+        savedMetaData[nativePath][meta_html].forEach((x) => {
+            // console.log(x.txt);
+            // console.log(" " + x.exif);
             if (warningDB[x.txt] == undefined) warningDB[x.txt] = [];
             warningDB[x.txt].push({ "nativePath": nativePath, "exif": x.exif });
         });
@@ -104,24 +104,22 @@ async function writeErrors(errorFolder, savedMetaData) {
         "The recommendations fix up the following:" +
         "<ul>" +
         "<li>Convert from the Microsoft face recognition metadata format to the Metadata Working Group standard used by Adobe.</li>" +
-        "<li>Fix people keywords that have in advertantly been left on photos without that person in the photo.</li>" +
+        "<li>Fix people keywords that have inadvertantly been left on photos without that person in the photo.</li>" +
         "<li>Fix non person keywords, such as \"cars\" that has been mistakenly placed in a face recognition rectangle.</li>" +
         "<li>Fix photos, where there is a face recognized, i.e. it has a face detection rectangle and a name entered for that person, but the keyword is missing from the \"keywording\" list</li>" +
         "<li>Make a list of the non person keywords, shown in this file, so you can check it for accuracy. If there are no recommendations shown at the bottom of this file, " +
         "then there were no global keywords detected and all keywords and face data are in agreement. </li>" +
         "</ul>" +
         "This plugin and Lightroom Classic communicate through the metadata in the files on the hard drive.  Lightroom Classic has a database that must be transferred to the metadata " +
-        "on the hard drive.  The metadata is then read by this Potoshop plugin to create the \"recommendations.bat\" file. " +
+        "on the hard drive.  The metadata is then read by this Photoshop plugin to create the \"recommendations.bat\" file. " +
         "The metatdata is updated by the exiftool commands in \"recommendations.bat\" and then is reread back into Lightroom Classic.",
         "<ol>" +
         "<li>Make sure that metadata on the hard drive corresponds to the Lightroom Classic database.  Sync on Lightroom Classic does not work for face detection rectangles. " +
         "Save Metadata to files does not work on face detection rectangles. \"Export as catalog\" does not work on face detection rectangles. Exporting a single file does work. " +
         "The easiest workaround is in Lightroom Classic:</li>" +
         "<ol type=\"A\">" +
-        "<li>Click on the top of the photo tree on local hard drive on the left side of the Lightroom Classic screen. </li>" +
-        "<li>In the library grid view select all the photos." +
         "<li>Very carefully, working only on a backup copy of your photos, add a keyword such as \"x\" at the bottom of the keywords in \"Keywording\" in the top right of the screen. " +
-        " If the setting to automatically update xmp metadata has been enabled, Lightroom Classic will update all the metadata on the hard drive.</li> " +
+        " If the setting to automatically update xmp metadata has been enabled, Lightroom Classic will save to disk all the metadata whenever a keyword changes.</li> " +
         "<li>In the keyword list, select \"x\" and choose \"delete\". Lightroom Classic will again write all metadata to the hard drive.</li> " +
         "</ol> " +
         "<li>Run the Recommendations.bat.  To get a record of the results, in a terminal window type \"./recommendations.bat > results.log\"." +
@@ -135,7 +133,7 @@ async function writeErrors(errorFolder, savedMetaData) {
 
     let warningDB = queryWarning(savedMetaData);
     for (let warning in warningDB) {
-      
+
         html.push("<div> " + htmlEntities(warning) + "</div>");
         html.push('<p style="margin-left: 25px;">');
 
@@ -144,7 +142,7 @@ async function writeErrors(errorFolder, savedMetaData) {
             let fname = fileName.replaceAll("\"", "/").replaceAll(" ", "%20");
             html.push("<a href=\"file://" + fname + "\" >" + fileName + "</a><br> ");
             if (x.exif.length > 0)
-                html.push("Recommend: " + htmlEntities(x.exif)+"<br>");
+                html.push("Recommend: " + htmlEntities(x.exif) + "<br>");
 
         });
         html.push("</p>");
@@ -158,7 +156,7 @@ async function writeErrors(errorFolder, savedMetaData) {
     let pc = ["echo  " + warning.join(" ")];
 
     for (let fileName in savedMetaData)
-        savedMetaData[fileName].cmd.forEach((x) => { pc.push(x.replaceAll("<", "^<")) });
+        savedMetaData[fileName][meta_cmd].forEach((x) => { pc.push(x.replaceAll("<", "^<")) });
 
     const exifFile = await errorFolder.createFile("recommendations.bat");
     await exifFile.write(pc.join("\r\n"), { append: false });
@@ -252,26 +250,14 @@ function capitalize(str) {
  */
 function removeIllegalFilenameCharacters(str) {
     let fileName = str.toString();
-    while (fileName.includes("  ")) {
-        fileName = fileName.replaceAll("  ", " "); // remove double spaces
-    }
-    ["/", "\\", "\"", ":", "<", ">", "\|", "?", "*"].forEach((x) => { fileName = fileName.replaceAll(x, ""); });
-    return capitalize(fileName);
+    // while (fileName.includes("  ")) {
+    //     fileName = fileName.replaceAll("  ", " "); // remove double spaces
+    // }
+    ["/", "\\", "\"", ":", "<", ">", "\|", "?", "*", "#"].forEach((x) => { fileName = fileName.replaceAll(x, ""); });
+    return fileName;
 };
 
-function deleteUndefines(array) {
-    let newArray = [];
-    array.forEach((a) => {
-        let ok = true;
-        Object.keys(a).forEach((key) => {
-            if (a[key] == undefined) {
-                ok = false;
-            }
-        });
-        if (ok) newArray.push(a);
-    });
-    return newArray;
-};
+
 
 function addSetFunctions(set) {
 
@@ -285,7 +271,7 @@ function addSetFunctions(set) {
         let newSet = new Set();
         this.forEach((x) => {
             if (set2.has(x)) {
-                console.log("intersect " + x)
+                // console.log("intersect " + x)
                 newSet.add(x);
             }
         });
@@ -303,5 +289,5 @@ function addSetFunctions(set) {
 
 
 module.exports = {
-    getFaceTagsTreeName, skipThisEntry, countFiles, writeErrors, removeIllegalFilenameCharacters, errorLog, capitalize, deleteUndefines, addSetFunctions
+    getFaceTagsTreeName, skipThisEntry, countFiles, writeErrors, removeIllegalFilenameCharacters, capitalize, errorLog, capitalize, addSetFunctions
 };

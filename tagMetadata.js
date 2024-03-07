@@ -1,7 +1,7 @@
 
 // copywrite 2023-2024 Richard R. Lyman
 
-const { errorLog, capitalize, deleteUndefines } = require("./tagUtils.js");
+const { errorLog, capitalize } = require("./tagUtils.js");
 
 function isSameArea(mwgRect, mpRect) {
 
@@ -43,7 +43,13 @@ function refreshSubjects(entry, html, cmd, regions, subjects) {
 }
 
 function regionInfoStruc(mRegions, appliedToWidth, appliedToHeight) {
-    let str = "{AppliedToDimensions={H=" + appliedToHeight + ", Unit=pixels, W=" + appliedToWidth + "} , RegionList=[";
+    let str;
+    if (isNaN(appliedToHeight) || isNaN(appliedToWidth))
+        str = "RegionList=[";
+    else
+        str = "{AppliedToDimensions={H=" + appliedToHeight + ", Unit=pixels, W=" + appliedToWidth + "} , RegionList=[";
+
+
     let x = [];
     for (i in mRegions) {
         const mRegion = mRegions[i];
@@ -99,7 +105,7 @@ function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth,
 
             if (isSameArea(mwgRegions[i].rect, mpRegions[k].rect)) {
                 if ((mwgRegions[i].name == undefined || mwgRegions[i].name.length == 0) && (mpRegions[k].name != undefined && mpRegions[k].name.length != 0)) {
-                    mwgRegions[i] = mpRegions[k];
+                    // mwgRegions[i] = mpRegions[k];
                     newNames.push(mpRegions[k].name);
                 }
             }
@@ -108,8 +114,8 @@ function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth,
     if (newNames.length > 0) {
 
         errorLog(html, cmd,
-            "WARNING 05: The Microsoft rectangle for \""+newNames.join(", and ")+"\" " +
-        "is missing from the matching Adobe rectangle. Transfer the name from the Microsoft region to the Adobe region.",
+            "WARNING 05: The Microsoft rectangle for \"" + newNames.join(", and ") + "\" " +
+            "is missing from the matching Adobe rectangle. Transfer the name from the Microsoft region to the Adobe region.",
             "exiftool   -RegionInfo=\"" + regionInfoStruc(mwgRegions, appliedToWidth, appliedToHeight) + "\"  " + tagFile(entry.nativePath));
 
         refreshSubjects(entry, html, cmd, mwgRegions, []);
@@ -286,19 +292,22 @@ function readPersonsFromMetadata(entry) {
                     "entry": entry,                             // File pointer for opening in photoshop
                     "dateTaken": javascriptDate,
                 };
-                persons.push(person);
+                if (!(person.name == undefined || person.x == undefined | person.y == undefined | person.w == undefined | person.h == undefined | person.dateTaken == undefined))
+                    persons.push(person);
 
             })
         }
 
     } catch (e) {
-        console.log("metadata error  " + e.toString() + "  FILE: " + entry.name);
+        if (entry != null)
+            console.log("metadata error  " + e.toString() + "  FILE: " + entry.nativePath);
+        else
+            console.log("metadata error  " + e.toString());
     }
 
     if (xmpFile != null)
         xmpFile.closeFile(0);
 
-    persons = deleteUndefines(persons);
     persons.forEach((person) => {
         regionNames.add(person.name);
     });

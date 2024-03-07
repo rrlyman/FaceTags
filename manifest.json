@@ -1,22 +1,19 @@
 {
   "id": "caeaf982",
   "name": "FaceTag",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "main": "index.html",
   "requiredPermissions": {
     "localFileSystem": "request"
   },
-  "host": [
-    {
-      "app": "PS",
-      "minVersion": "25.0"
-    }
-  ],
+  "host": {
+    "app": "PS",
+    "minVersion": "25.0"
+  },
   "manifestVersion": 5,
   "featureFlags": {
     "enableSWCSupport": true
   },
-
   "entrypoints": [
     {
       "type": "panel",

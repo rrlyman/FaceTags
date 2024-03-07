@@ -2,7 +2,7 @@
 // copywrite 2023 Richard R. Lyman
 
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
-const { getFaceTagsTreeName, skipThisEntry, countFiles, writeErrors, removeIllegalFilenameCharacters, errorLog, addSetFunctions } = require("./tagUtils.js");
+const { getFaceTagsTreeName, skipThisEntry, countFiles, writeErrors, removeIllegalFilenameCharacters, capitalize, errorLog, addSetFunctions } = require("./tagUtils.js");
 
 class Gifs {
    init() {
@@ -66,23 +66,26 @@ class Gifs {
       this.init();
    }
 
+   /** Extract data from the photo metadata, and place the data in conveniently indexed arrays or Sets
+    * 
+    * @param {*} savedMetaData information read from file metadata 
+    */
+   queryDataBase(savedMetaData) {
 
-   queryDataBase(db) {
+      for (let nativePath in savedMetaData) {
+         const fileInfo = savedMetaData[nativePath];
 
-      for (let nativePath in db) {
-         const fileInfo = db[nativePath];
+         fileInfo[meta_regionNames].forEach((x) => { this.personKeys.add(x) });
+         fileInfo[meta_subjects].forEach((x) => { this.subjectKeys.add(x) });
 
-         fileInfo.regionNames.forEach((x) => { this.personKeys.add(x) });
-         fileInfo.subjects.forEach((x) => { this.subjectKeys.add(x) });
-
-         fileInfo.persons.forEach((person) => {
+         fileInfo[meta_persons].forEach((person) => {
             if (this.personsDict[person.name] == undefined) this.personsDict[person.name] = [];
             this.personsDict[person.name].push(person);
          })
 
-         fileInfo.subjects.forEach((subject) => {
+         fileInfo[meta_subjects].forEach((subject) => {
             if (this.globalSubjects[subject] == undefined) this.globalSubjects[subject] = new Set();;
-            fileInfo.regionNames.forEach((x) => { this.globalSubjects[subject].add(x) });
+            fileInfo[meta_regionNames].forEach((x) => { this.globalSubjects[subject].add(x) });
 
             if (this.globalFiles[subject] == undefined) this.globalFiles[subject] = new Set();;
             this.globalFiles[subject].add(nativePath);
@@ -120,7 +123,9 @@ class Gifs {
          this.init();
 
          await this.recurseIndex(this.originalPhotosFolder);
+
          await disableButtons("Processing Index");
+
          this.queryDataBase(this.savedMetaData);
 
 
@@ -131,27 +136,30 @@ class Gifs {
 
             const fileInfo = this.savedMetaData[nativePath];
 
-            fileInfo.subjects.forEach((subject) => {
+            fileInfo[meta_subjects].forEach((subject) => {
 
-               if (!fileInfo.regionNames.has(subject)) {
+               if (!fileInfo[meta_regionNames].has(subject)) {
                   if (this.personKeys.has(subject)) {
-                     // it also possible that it looks good in Lightroom but the metadata has not been saved from Lightroom to the hard drive. Deleting the z_TBD keyword will 
+                     // it also possible that it looks good in Lightroom but the metadata has not been saved from Lightroom to the hard drive. Deleting the "+zKey+" keyword will 
                      // cause the metadata to be written out.
-                     errorLog(fileInfo.html, fileInfo.cmd,
+                     // const zKey = "z_" + subject;
+                     errorLog(fileInfo[meta_html], fileInfo[meta_cmd],
                         "WARNING 00: \'" + subject + "\' is a person with a face detected somewhere in your photo tree, but in this file it is in the keywords " +
-                        "but is not in the Adobe regions. Possibly the detected face has been overwritten. Mark it with z_TBD and investigate it in Lightroom Classic",
-                        "exiftool  -Keywords-=\"z_TBD\" -Subject-=\"z_TBD\" -Keywords+=\"z_TBD\" -Subject+=\"z_TBD\"  " + "-m \"" + nativePath + "\"   ");                        
-                        // "exiftool  -Keywords-=\"" + subject + "\" -Subject-=\"" + subject + "\"  -Keywords-=\"z_TBD\" -Subject-=\"z_TBD\" -Keywords+=\"z_TBD\" -Subject+=\"z_TBD\"  " + "-m \"" + nativePath + "\"   ");
+                        "but is not in the Adobe regions. Possibly the detected face has been overwritten. Investigate this in Lightroom Classic.",
+                        // "but is not in the Adobe regions. Possibly the detected face has been overwritten. In Lightroom Classic, filter on z_ fix, then delete z_ keyword",
+                        // "exiftool  -Keywords-=\"" + zKey + "\" -Subject-=\"" + zKey + "\" -Keywords+=\"" + zKey + "\" -Subject+=\"" + zKey + "\"  " + "-m \"" + nativePath + "\"   ");
+                        "");
                   }
 
-                  errorLog(fileInfo.html, fileInfo.cmd,
+                  errorLog(fileInfo[meta_html], fileInfo[meta_cmd],
                      "WARNING 01: \'" + subject + "\' is in the subjects or keywords but is missing from mwgRegions." +
-                     " It is either a non person keyword (good) or a person's name that was erroneously put in the keywords without a face rectangle (bad). " ,
+                     " It is either a non person keyword (good) or a person's name that was erroneously put in the keywords without a face rectangle (bad). ",
                      "");
-                     // "exiftool  -Keywords-=\"z_TBD\" -Subject-=\"z_TBD\" -Keywords+=\"z_TBD\" -Subject+=\"z_TBD\"  " + "-m \"" + nativePath + "\"   ");
+
                }
             });
          };
+
 
 
          this.clearMenu();      // clean out the keyword list on the panel
@@ -308,6 +316,9 @@ class Gifs {
          let newName = getFaceTagsTreeName(this.originalPhotosFolder.name, ents, gifSuffix);
          this.gifEntry = await this.originalPhotosFolder.createFolder(newName);
 
+         const resultsFolder = await this.gifEntry.createFolder("suggestions");
+         await writeErrors(resultsFolder, this.savedMetaData);
+         this.savedMetaData = {}; // free up memory
 
          // go through all the people that were found and make a GIF for each one.
 
@@ -329,7 +340,8 @@ class Gifs {
                   fill: "transparent"
 
                }), { "commandName": "Create Target Document" });
-               await new Promise(r => setTimeout(r, 100));  // required to give time to process Cancel Button
+               if (targetDoc == null)
+                  await new Promise(r => setTimeout(r, 2000));  // required to give time to process Cancel Button
             }
 
             // For each person, there was an entry, one per period.
@@ -343,7 +355,16 @@ class Gifs {
             for (let i = 0; i < msKeys.length && !stopFlag; i++) {
 
                let person = filteredDict[personKey][msKeys[i]];
-               let sourceDoc = await xModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
+               // open returns a document, but it might no yet be open, in case the ID is undefined
+               let sourceDoc = null;
+               do {
+                  sourceDoc = await xModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
+                  if (!(sourceDoc == undefined || sourceDoc == null || sourceDoc.id == undefined))
+                     break;
+                  await new Promise(r => setTimeout(r, 2000));
+               } while (true);
+
+               // let sourceDoc = await xModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
                await xModal(() => sourceDoc.flatten(), { "commandName": "Flattening" });
 
                //  With fullPhoto enabled, create a document where the biggest dimension is equal to the gifSize
@@ -373,6 +394,7 @@ class Gifs {
                   { "commandName": "Duplicating a layer" });
 
                await xModal(() => sourceDoc.closeWithoutSaving(), { "commandName": "closeWithoutSaving" });
+               sourceDoc = null;
                await new Promise(r => setTimeout(r, 100));  // required to give time to process Cancel Button
             }
 
@@ -382,15 +404,20 @@ class Gifs {
                   await xModal(() => targetDoc.layers.getByName("Layer 1").delete(), { "commandName": "Removing transparent layer" });
                   await this.makeGif();
                }
-               let saveEntry = await this.gifEntry.createFile(removeIllegalFilenameCharacters(personKey) + '.gif');
-               await xModal(() => targetDoc.saveAs.gif(saveEntry), { "commandName": "saveAs.gif" });
+               let saveEntry = await this.gifEntry.createFile(capitalize(removeIllegalFilenameCharacters(personKey)) + '.gif');
+               try {
+                  await xModal(() => targetDoc.saveAs.gif(saveEntry), { "commandName": "saveAs.gif" });
+               } catch (e) {
+                  console.log(" targetDoc.saveAs" + e);
+               }
             }
 
             await xModal(() => targetDoc.closeWithoutSaving(), { "commandName": "closeWithoutSaving" });
+            targetDoc = null;
+            await new Promise(r => setTimeout(r, 500));  // rest perioed                      
          }
 
-         const resultsFolder = await this.gifEntry.createFolder("results");
-         await writeErrors(resultsFolder, this.savedMetaData);
+
          await enableButtons();
       }
    };
@@ -416,9 +443,10 @@ class Gifs {
             await this.recurseIndex(entry);
          } else {
 
+
             ////////////////////   PAYLOAD START   /////////////////////   
-            let [persons, subjects, html, cmd, regionNames] = readPersonsFromMetadata(entry);  // persons in the file, with the subject subjects for each person
-            this.savedMetaData[entry.nativePath] = { "persons": persons, "subjects": subjects, "html": html, "cmd": cmd, "regionNames": regionNames };
+            const [persons, subjects, html, cmd, regionNames] = readPersonsFromMetadata(entry);  // persons in the file, with the subject subjects for each person
+            this.savedMetaData[entry.nativePath] = [persons, subjects, html, cmd, regionNames];
             ////////////////////   PAYLOAD END   /////////////////////    
          }
       }

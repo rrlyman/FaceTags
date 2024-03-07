@@ -2,7 +2,7 @@
 // copywrite 2023 Richard R. Lyman
 const { readPersonsFromMetadata } = require("./tagMetadata.js");
 const { setOutsideStroke, makeAPortrait } = require("./tagBatchPlay.js");
-const { getFaceTagsTreeName, skipThisEntry, countFiles, writeErrors } = require("./tagUtils.js");
+const { getFaceTagsTreeName, skipThisEntry, countFiles, removeIllegalFilenameCharacters, writeErrors } = require("./tagUtils.js");
 
 
 class Tags {
@@ -18,7 +18,6 @@ class Tags {
     constructor() {
         this.originalPhotosFolder = null;   // if not null,  then an index has already been built
         this.init();
-
     }
 
     /** face tag a file
@@ -28,23 +27,30 @@ class Tags {
      * @returns false if the file type is not on the list to be facetagged or there are no persons to facetag.
      */
     async openAndTagFileFromDisk(entry) {
+
         if (skipThisEntry(entry)) // skip over unsupported photo file types
             return false;
-        let [persons, subjects, html, cmd] = readPersonsFromMetadata(entry);
 
-        this.savedMetaData[entry.nativePath] = { "persons": persons, "subjects": subjects, "html": html, "cmd": cmd };
-        if (persons.length == 0)
+        const [persons, subjects, html, cmd, regionNames] = readPersonsFromMetadata(entry);
+        this.savedMetaData[entry.nativePath] = [persons, subjects, html, cmd, regionNames];
+
+        if (persons.length == 0)  // do not even try to open the file if there are no persons in it
             return false;
-        this.aDoc = null;
-        while (this.aDoc == null && !stopFlag) {
-            await xModal(() => app.open(entry), { "commandName": "Opening batched File" });
-            this.aDoc = app.activeDocument;
-            await new Promise(r => setTimeout(r, 100));  // required to give time to process Cancel Button
-        }
+
+        // open returns a document, but it might no yet be open, in case the ID is undefined
+        do {
+            const x = await xModal(() => app.open(entry), { "commandName": "Opening batched File" });
+            if (!(x == undefined || x == null || x.id == undefined))
+                break;
+            await new Promise(r => setTimeout(r, 2000));
+        } while (true);
+
+        this.aDoc = app.activeDocument;
+
         if (stopFlag || this.aDoc == null)
             return false;
         await this.faceTagTheImage(persons);
-        return true;
+        return persons.length > 0;
     }
 
     /**
@@ -54,10 +60,10 @@ class Tags {
         this.aDoc = app.activeDocument;
         await disableButtons("Refreshing Labels");
         if (app.documents.length != 0) {
-            let [persons, subjects, html, cmd] = readPersonsFromMetadata(null);
+            let [persons, subjects, html, cmd, regionNames] = readPersonsFromMetadata(null);
             this.dontAsk = false;
 
-            this.resetHistoryState(this.aDoc);        // start with clean document  
+            await this.resetHistoryState(this.aDoc);        // start with clean document  
             await this.faceTagTheImage(persons);
         }
         await enableButtons();
@@ -109,16 +115,17 @@ class Tags {
         const newFolderName = getFaceTagsTreeName(this.originalPhotosFolder.name, ents, labeledSuffix);
         const targetFolderEntry = await this.originalPhotosFolder.createFolder(newFolderName);
 
+
         await disableButtons("Counting Files");
 
         progressbar.max = await countFiles(this.originalPhotosFolder);
         if (!stopFlag) {
             await disableButtons("Tagging files");  // only enable the Cancel button 
-
             await this.recurseBatchFiles(this.originalPhotosFolder, targetFolderEntry);
-
         }
-        await writeErrors(targetFolderEntry, this.savedMetaData);
+        const resultsFolder = await targetFolderEntry.createFolder("suggestions");
+        await writeErrors(resultsFolder, this.savedMetaData);
+        this.savedMetaData = {};  // free up memory
         await enableButtons();
     };
 
@@ -164,10 +171,12 @@ class Tags {
 
                     // and save it
                     await xModal(() => this.aDoc.flatten(), { "commandName": "Flattening" });   // required to save png 
-                    let fname = this.aDoc.name.replace(/\.[^/.]+$/, "") + labeledSuffix + '.jpg';
+                    let fname = removeIllegalFilenameCharacters(this.aDoc.name) + labeledSuffix + '.jpg';
+
                     let saveEntry = await newFolder.createFile(fname); // similar name as original but store on tagged tree.
                     await xModal(() => this.aDoc.saveAs.jpg(saveEntry), { "commandName": "saveAs.jpg" });
                     await xModal(() => this.aDoc.closeWithoutSaving(), { "commandName": "closeWithoutSaving" });
+
 
                     ////////////////////     PAYLOAD END     /////////////////////      
 
@@ -202,8 +211,6 @@ class Tags {
 
         persons.sort((a, b) => b.name.toUpperCase().localeCompare(a.name.toUpperCase()));
 
-
-        // await selectMoveTool();
         if (this.aDoc.layers.length > 1)
             await xModal(() => this.aDoc.flatten(), { "commandName": "Flattening" });
 
@@ -281,10 +288,13 @@ class Tags {
      * @param {*} this.aDoc // the active document 
      */
 
-    resetHistoryState(doc) {
-        if (doc.historyStates.length > 0) {
-            doc.activeHistoryState = this.aDoc.historyStates[0];
-        }
+    async resetHistoryState(doc) {
+        try {
+            if (doc.historyStates.length > 0) {
+                await xModal(() => { doc.activeHistoryState = this.aDoc.historyStates[0] }, { "commandName": "Reset History State" });
+
+            }
+        } catch (e) { console.log(e); }
     };
 
 
