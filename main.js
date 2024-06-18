@@ -1,5 +1,8 @@
 
 // copywrite 2023 Richard R. Lyman
+
+// NOTE: if a photo has been edited in Lightroom Classic, then the metadata cannot be synced
+
 const { entrypoints, xmp, storage } = require("uxp");
 const { app, constants, imaging, action, core } = require("photoshop");
 
@@ -68,7 +71,8 @@ elements.forEach((element) => {
 
 console.log("runningList " + JSON.stringify(runningList));
 console.log("notRunningList " + JSON.stringify(notRunningList));
-
+const fileToDebug = "20131123_184243";
+const zKey = "x";
 // ##############################  Restore Persistant State ##################################
 
 const gSettings = {};

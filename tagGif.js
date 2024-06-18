@@ -130,7 +130,7 @@ class Gifs {
 
 
          for (let nativePath in this.savedMetaData) {
-            if (nativePath.includes("IMG_2628 (2).jpg")) {
+            if (nativePath.includes(fileToDebug)) {
                let k = 7;
             }
 
@@ -142,19 +142,21 @@ class Gifs {
                   if (this.personKeys.has(subject)) {
                      // it also possible that it looks good in Lightroom but the metadata has not been saved from Lightroom to the hard drive. Deleting the "+zKey+" keyword will 
                      // cause the metadata to be written out.
-                     // const zKey = "z_" + subject;
+                     
                      errorLog(fileInfo[meta_html], fileInfo[meta_cmd],
                         "WARNING 00: \'" + subject + "\' is a person with a face detected somewhere in your photo tree, but in this file it is in the keywords " +
                         "but is not in the Adobe regions. Possibly the detected face has been overwritten. Investigate this in Lightroom Classic.",
-                        // "but is not in the Adobe regions. Possibly the detected face has been overwritten. In Lightroom Classic, filter on z_ fix, then delete z_ keyword",
-                        // "exiftool  -Keywords-=\"" + zKey + "\" -Subject-=\"" + zKey + "\" -Keywords+=\"" + zKey + "\" -Subject+=\"" + zKey + "\"  " + "-m \"" + nativePath + "\"   ");
+                        "exiftool  -Keywords-=\"" + zKey + "\" -Subject-=\"" + zKey + "\" -Keywords+=\"" + zKey + "\" -Subject+=\"" + zKey + "\"  " + "-m \"" + nativePath + "\"   ");
+
+                  } else {
+
+                     errorLog(fileInfo[meta_html], fileInfo[meta_cmd],
+                        "WARNING 01: \'" + subject + "\' is in the subjects or keywords but is missing from mwgRegions." +
+                        " It is either a non person keyword (good) or a person's name that was erroneously put in the keywords without a face rectangle (bad). ",
                         "");
                   }
 
-                  errorLog(fileInfo[meta_html], fileInfo[meta_cmd],
-                     "WARNING 01: \'" + subject + "\' is in the subjects or keywords but is missing from mwgRegions." +
-                     " It is either a non person keyword (good) or a person's name that was erroneously put in the keywords without a face rectangle (bad). ",
-                     "");
+
 
                }
             });

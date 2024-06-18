@@ -6,12 +6,13 @@ body {
 .btn {
   display: flex;
   justify-content: space-between;
-  padding: 4px;
+  padding-top: 4px;
+  padding-bottom: 3px;
 }
 
 div {
-  padding-top: 2px;
-  padding-bottom: 2px;
+  padding-top: 0px;
+  padding-bottom: 0px;
 }
 
 p {

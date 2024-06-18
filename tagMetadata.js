@@ -27,7 +27,14 @@ function noDifs(subjects) {
     });
     return z;
 }
-
+/**
+ * Copy the names in the regions to the keywords and Subject
+ * @param {*} entry 
+ * @param {*} html 
+ * @param {*} cmd 
+ * @param {*} regions 
+ * @param {*} subjects 
+ */
 function refreshSubjects(entry, html, cmd, regions, subjects) {
     if (regions != undefined) {
         regions.forEach((region) => {
@@ -36,6 +43,7 @@ function refreshSubjects(entry, html, cmd, regions, subjects) {
                     errorLog(html, cmd,
                         "WARNING 03: \"" + region.name + "\" is in MWG mwgRectangle but is not in dc:subject. Copy the name to the keywords and Subject",
                         "exiftool  -Keywords-=\"" + region.name + "\" -Subject-=\"" + region.name + "\"  -Subject+=\"" + region.name + "\" -Keywords+=\"" + region.name + "\" " + tagFile(entry.nativePath));
+
                 }
             }
         });
@@ -53,8 +61,10 @@ function regionInfoStruc(mRegions, appliedToWidth, appliedToHeight) {
     let x = [];
     for (i in mRegions) {
         const mRegion = mRegions[i];
-        const rect = mRegion.rect;
-        x = x.concat("{ Area={ H=" + rect[3].toFixed(4) + ", W=" + rect[2].toFixed(4) + ", X=" + rect[0].toFixed(4) + ", Y=" + rect[1].toFixed(4) + "}, Name=" + mRegion.name + ", Rotation=0.000000, Type=Face } ");
+        if (mRegion != undefined) {
+            const rect = mRegion.rect;
+            x = x.concat("{ Area={ H=" + rect[3].toFixed(4) + ", W=" + rect[2].toFixed(4) + ", X=" + rect[0].toFixed(4) + ", Y=" + rect[1].toFixed(4) + "}, Name=" + mRegion.name + ", Rotation=0.000000, Type=Face } ");
+        }
     };
     return str + x.join(", ") + "]}";
 }
@@ -70,6 +80,16 @@ function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth,
 
     let html = [];
     let cmd = [];
+    let mwgNames = [];
+    let mpNames = [];
+    mwgRegions.forEach((mwgRegion) => {
+        if (mwgRegion.name != undefined)
+            mwgNames.push(mwgRegion.name)
+    });
+    mpRegions.forEach((mpRegion) => {
+        if (mpRegion.name != undefined)
+            mpNames.push(mpRegion.name)
+    });
 
     if (mwgRegions.length == 0 && mpRegions.length > 0) {
         errorLog(html, cmd,
@@ -96,8 +116,38 @@ function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth,
     });
 
 
-    // if there is an  unidentified rectangle (has a ? for a name), and the name is in the Microsoft rectangles, than add it back in.
+    //if there is a name in the subjects and it is not in the adobe regions but it is  in the Microsoft regions, then copy over the Microsoft Regions
+    let newRegions = [];
     let newNames = [];
+
+
+    subjects.forEach((subject) => {
+        let indx = mpNames.indexOf(subject);
+
+        if (!mwgNames.includes(subject) && indx >= 0) {
+            newRegions.push(mpRegions[indx]);
+            newNames.push(subject);
+        }
+    })
+    if (newRegions.length > 0) {
+
+        errorLog(html, cmd,
+            "WARNING 07: The Microsoft rectangle for \"" + newNames.join(", and ") + "\" " +
+            "is missing from the matching Adobe rectangle. Transfer the name from the Microsoft region to the Adobe region.",
+            'exiftool -config facetags.config  -RegionInfo<MPRegion2MWGRegion ' + tagFile(entry.nativePath));            
+            // "exiftool   -RegionInfo=\"" + regionInfoStruc(mpRegions, appliedToWidth, appliedToHeight) + "\"  " + tagFile(entry.nativePath));
+        errorLog(html, cmd,
+            "WARNING 07a: The Microsoft rectangle for \"" + newNames.join(", and ") + "\" " +
+            "is missing from the matching Adobe rectangle. Transfer the name from the Microsoft region to the Adobe region.",
+            "exiftool  -Keywords-=\"" + zKey + "\" -Subject-=\"" + zKey + "\"  -Subject+=\"" + zKey + "\"  -Keywords+=\"" + zKey + "\" " + tagFile(entry.nativePath));
+            
+        refreshSubjects(entry, html, cmd, mpRegions, []);
+    }
+
+
+    // if there is an  unidentified rectangle (has a ? for a name), with the same dimensions in Microsoft and Adobe and the name is in the Microsoft rectangles, than add it back in.
+
+    newNames = [];
 
     for (let i in mwgRegions) {
 
@@ -116,10 +166,27 @@ function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth,
         errorLog(html, cmd,
             "WARNING 05: The Microsoft rectangle for \"" + newNames.join(", and ") + "\" " +
             "is missing from the matching Adobe rectangle. Transfer the name from the Microsoft region to the Adobe region.",
-            "exiftool   -RegionInfo=\"" + regionInfoStruc(mwgRegions, appliedToWidth, appliedToHeight) + "\"  " + tagFile(entry.nativePath));
+            "exiftool   -RegionInfo=\"" + regionInfoStruc(mpRegions, appliedToWidth, appliedToHeight) + "\"  " + tagFile(entry.nativePath));
 
         refreshSubjects(entry, html, cmd, mwgRegions, []);
     }
+    dupNames = [];
+    let foundDup = false;
+    for (let i = 0; i < mwgRegions.length; i++) {
+        for (let k = i + 1; k < mwgRegions.length; k++) {
+            if (mwgRegions[i] != undefined && mwgRegions[i].name != undefined && mwgRegions[k].name != undefined && mwgRegions[i].name == mwgRegions[k].name) {
+                foundDup = true;
+                dupNames.push(mwgRegions[i].name);
+                delete mwgRegions[i];
+            }
+        }
+    }
+    if (foundDup) {
+        errorLog(html, cmd,
+            "WARNING 06: Remove duplicate names " + dupNames.join(",") + " from Adobe regions.",
+            "exiftool   -RegionInfo=\"" + regionInfoStruc(mwgRegions, appliedToWidth, appliedToHeight) + "\"  " + tagFile(entry.nativePath));
+    }
+
 
     return [html, cmd];
 };
@@ -135,7 +202,7 @@ function parseString(str) { if (str == undefined || str == null) return undefine
  */
 
 function readPersonsFromMetadata(entry) {
-    if (entry != null && entry.name.includes("Scan-150209-0043")) {
+    if (entry != null && entry.name.includes(fileToDebug)) {
         let k = 5;
     }
 

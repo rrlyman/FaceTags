@@ -1,7 +1,7 @@
 {
   "id": "caeaf982",
   "name": "FaceTag",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "main": "index.html",
   "requiredPermissions": {
     "localFileSystem": "request"
@@ -27,12 +27,12 @@
         "height": 2000
       },
       "preferredDockedSize": {
-        "width": 290,
-        "height": 255
+        "width": 280,
+        "height": 250
       },
       "preferredFloatingSize": {
-        "width": 290,
-        "height": 255
+        "width": 280,
+        "height": 250
       },
       "icons": [
         {
