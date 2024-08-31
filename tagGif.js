@@ -130,9 +130,9 @@ class Gifs {
 
 
          for (let nativePath in this.savedMetaData) {
-            if (nativePath.includes(fileToDebug)) {
-               let k = 7;
-            }
+            // if (nativePath.includes(fileToDebug)) {
+            //    let k = 7;
+            // }
 
             const fileInfo = this.savedMetaData[nativePath];
 
