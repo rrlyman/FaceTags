@@ -184,9 +184,17 @@ class Tags {
             }
 
             // delete empty folders
+            // if permission error, wait and try a few times.
             let ents = await newFolder.getEntries();
             if (ents.length == 0) {
-                await newFolder.delete();
+                for (let i = 0; (i < 3) && (!stopFlag); i++) {
+                    try {
+                        if (await newFolder.delete() == 0) break;
+                    } catch (e) {
+                        console.log("File delete error  " + e.toString() + "  " + newFolder.nativePath);
+                        await new Promise(r => setTimeout(r, 3000));    // give Dropbox enough time to free the folder permissions                         
+                    }
+                }
             }
         }
     };

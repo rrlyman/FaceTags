@@ -170,7 +170,7 @@ function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth,
 
         refreshSubjects(entry, html, cmd, mwgRegions, []);
     }
-    dupNames = [];
+    let dupNames = [];
     let foundDup = false;
     for (let i = 0; i < mwgRegions.length; i++) {
         for (let k = i + 1; k < mwgRegions.length; k++) {
