@@ -134,13 +134,13 @@ function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth,
         errorLog(html, cmd,
             "WARNING 07: The Microsoft rectangle for \"" + newNames.join(", and ") + "\" " +
             "is missing from the matching Adobe rectangle. Transfer the name from the Microsoft region to the Adobe region.",
-            'exiftool -config facetags.config  -RegionInfo<MPRegion2MWGRegion ' + tagFile(entry.nativePath));            
-            // "exiftool   -RegionInfo=\"" + regionInfoStruc(mpRegions, appliedToWidth, appliedToHeight) + "\"  " + tagFile(entry.nativePath));
+            'exiftool -config facetags.config  -RegionInfo<MPRegion2MWGRegion ' + tagFile(entry.nativePath));
+        // "exiftool   -RegionInfo=\"" + regionInfoStruc(mpRegions, appliedToWidth, appliedToHeight) + "\"  " + tagFile(entry.nativePath));
         errorLog(html, cmd,
             "WARNING 07a: The Microsoft rectangle for \"" + newNames.join(", and ") + "\" " +
             "is missing from the matching Adobe rectangle. Transfer the name from the Microsoft region to the Adobe region.",
             "exiftool  -Keywords-=\"" + zKey + "\" -Subject-=\"" + zKey + "\"  -Subject+=\"" + zKey + "\"  -Keywords+=\"" + zKey + "\" " + tagFile(entry.nativePath));
-            
+
         refreshSubjects(entry, html, cmd, mpRegions, []);
     }
 
@@ -257,30 +257,32 @@ function readPersonsFromMetadata(entry) {
         const appliedToWidth = parseFloat(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:AppliedToDimensions/stDim:w"));
         let dateTaken = parseString(xmpMeta.getProperty(xmpConstants.NS_XMP, "xmp:CreateDate"));
         const dateModified = parseString(xmpMeta.getProperty(xmpConstants.NS_XMP, "xmp:ModifyDate"));
+        try {
+            for (let i = 1; xmpMeta.getProperty(MP, "MP:RegionInfo/MPRI:Regions[" + i + "]") != undefined; i++) {
+                let rect = parseString(xmpMeta.getProperty(MP, "MP:RegionInfo/MPRI:Regions[" + i + "]/MPReg:Rectangle"));
+                const personDisplayName = capitalize(parseString(xmpMeta.getProperty(MP, "MP:RegionInfo/MPRI:Regions[" + i + "]/MPReg:PersonDisplayName")));
 
-        for (let i = 1; xmpMeta.getProperty(MP, "MP:RegionInfo/MPRI:Regions[" + i + "]") != undefined; i++) {
-            let rect = parseString(xmpMeta.getProperty(MP, "MP:RegionInfo/MPRI:Regions[" + i + "]/MPReg:Rectangle"));
-            const personDisplayName = capitalize(parseString(xmpMeta.getProperty(MP, "MP:RegionInfo/MPRI:Regions[" + i + "]/MPReg:PersonDisplayName")));
-
-            if ((rect == undefined))
-                mpRegions.push({ "name": personDisplayName });
-            else {
-                rect = rect.split(",");
-                const mpRegion = {
-                    "name": personDisplayName,
-                    "rect": [
-                        Number(rect[0]) + Number(rect[2]) / 2,  // x top left coordinate in the original uncropped photo
-                        Number(rect[1]) + Number(rect[3]) / 2,  // y top left coordinate in the original uncropped photo
-                        Number(rect[2]),
-                        Number(rect[3])],
-                    "rectType": "Face",
-                    "unit": "normalized",
-                    "rotation": undefined
+                if ((rect == undefined))
+                    mpRegions.push({ "name": personDisplayName });
+                else {
+                    rect = rect.split(",");
+                    const mpRegion = {
+                        "name": personDisplayName,
+                        "rect": [
+                            Number(rect[0]) + Number(rect[2]) / 2,  // x top left coordinate in the original uncropped photo
+                            Number(rect[1]) + Number(rect[3]) / 2,  // y top left coordinate in the original uncropped photo
+                            Number(rect[2]),
+                            Number(rect[3])],
+                        "rectType": "Face",
+                        "unit": "normalized",
+                        "rotation": undefined
+                    }
+                    mpRegions.push(mpRegion);
                 }
-                mpRegions.push(mpRegion);
             }
+        } catch (e) {
+            console.log("Missing Microsoft Schema " + e.toString() + "  FILE: " + entry.nativePath);
         }
-
 
         for (let i = 1; xmpMeta.getProperty(xmpConstants.NS_DC, "dc:subject[" + i + "]") != undefined; i++) {
             let dcSubject = capitalize(parseString(xmpMeta.getProperty(xmpConstants.NS_DC, "dc:subject[" + i + "]")));
@@ -296,6 +298,50 @@ function readPersonsFromMetadata(entry) {
             let rectUnit = parseString(xmpMeta.getStructField(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Area", NSArea, "unit"));
             let rectType = parseString(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Type"));  // not listed as async
             let rotation = parseString(xmpMeta.getProperty(ns, "mwg-rs:Regions/mwg-rs:RegionList[" + i + "]/mwg-rs:Rotation"));  // not listed as async
+
+            let newX = x;
+            let newY = y;
+            let newW = w;
+            let newH = h;
+
+            ///  correct for region rotation
+            // x and y are the center of the rectangle measured from the upper left corner of the photo
+            switch (rotation) {
+                case "-1.57080":
+                    newX = 1 - y;
+                    newY = x;
+                    newW = h;
+                    newH = w;
+                    break;
+                case "1.57080":
+                    newX = y;
+                    newY = 1 - x ;
+                    newW = h;
+                    newH = w;
+                    break;
+                case "3.14159":
+                    newX = 1 - x;
+                    newY = 1 - y;
+                    break;
+                case "-3.14159":
+                    newX = 1 - x;
+                    newY = 1 - y;
+                    break;
+
+                default:
+                    break;
+            }
+            if (!(x == newX && y == newY && h == newH && w == newW)) {
+                console.log("FILE: " + entry.nativePath + ", personName=" + personName + ", rotation = ", rotation);
+                console.log("   x = " + x + ", newX = " + newX);
+                console.log("   y = " + y + ", newY = " + newY);
+                console.log("   h = " + h + ", newH = " + newH);
+                console.log("   w = " + w + ", newW = " + newW);
+            }
+            x = newX;
+            y = newY;
+            h = newH;
+            w = newW;
 
             const mwgRegion = {
                 "name": personName,

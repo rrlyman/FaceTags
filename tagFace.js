@@ -172,10 +172,12 @@ class Tags {
                     // and save it
                     await xModal(() => this.aDoc.flatten(), { "commandName": "Flattening" });   // required to save png 
                     let fname = removeIllegalFilenameCharacters(this.aDoc.name) + labeledSuffix + '.jpg';
+                    console.log("saving file: " + fname);
 
                     let saveEntry = await newFolder.createFile(fname); // similar name as original but store on tagged tree.
                     await xModal(() => this.aDoc.saveAs.jpg(saveEntry), { "commandName": "saveAs.jpg" });
                     await xModal(() => this.aDoc.closeWithoutSaving(), { "commandName": "closeWithoutSaving" });
+                    console.log("successful save");
 
 
                     ////////////////////     PAYLOAD END     /////////////////////      
@@ -187,12 +189,13 @@ class Tags {
             // if permission error, wait and try a few times.
             let ents = await newFolder.getEntries();
             if (ents.length == 0) {
-                for (let i = 0; (i < 3) && (!stopFlag); i++) {
+                console.log("Deleting empty folder  " + newFolder.nativePath);
+                for (let i = 0; (i < 6) && (!stopFlag); i++) {
                     try {
                         if (await newFolder.delete() == 0) break;
                     } catch (e) {
                         console.log("File delete error  " + e.toString() + "  " + newFolder.nativePath);
-                        await new Promise(r => setTimeout(r, 3000));    // give Dropbox enough time to free the folder permissions                         
+                        await new Promise(r => setTimeout(r, 10000));    // give Dropbox enough time to free the folder permissions                         
                     }
                 }
             }
