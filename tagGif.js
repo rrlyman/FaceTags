@@ -357,7 +357,7 @@ class Gifs {
             for (let i = 0; i < msKeys.length && !stopFlag; i++) {
 
                let person = filteredDict[personKey][msKeys[i]];
-               // open returns a document, but it might no yet be open, in case the ID is undefined
+               // open returns a document, but it might not yet be open, in case the ID is undefined
                let sourceDoc = null;
                do {
                   sourceDoc = await xModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
@@ -365,6 +365,10 @@ class Gifs {
                      break;
                   await new Promise(r => setTimeout(r, 2000));
                } while (true);
+
+               // assume all pixels are square. Override any non square pixel setting
+
+               await xModal(() => sourceDoc.pixelAspectRatio=1.0, { "commandName": "Pixel Aspect Ration" });
 
                // let sourceDoc = await xModal(() => app.open(person.entry), { "commandName": "Opening batched File" });
                await xModal(() => sourceDoc.flatten(), { "commandName": "Flattening" });
