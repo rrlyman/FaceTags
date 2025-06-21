@@ -69,12 +69,20 @@ function regionInfoStruc(mRegions, appliedToWidth, appliedToHeight) {
     return str + x.join(", ") + "]}";
 }
 
+
 /**
- * 
- * @param {*} mwgRegions Array from mwg-rs:Regions
- * @param {*} subjects Array from dc:Subject
- * @param {*} mpRegions Array from Microsoft MP:RegionInfo
- * @returns html array of strings containing errors.
+ * Checks and synchronizes properties between Adobe (MWG) and Microsoft (MP) face region metadata,
+ * and generates warnings and ExifTool commands for inconsistencies or issues found.
+ *
+ * @param {Object} entry - The file entry object, expected to have a `nativePath` property.
+ * @param {Array<Object>} mwgRegions - Array of Adobe (MWG) region objects, each with at least a `name` and `rect`.
+ * @param {Array<string>} subjects - Array of subject names (typically face tags).
+ * @param {Array<Object>} mpRegions - Array of Microsoft (MP) region objects, each with at least a `name` and `rect`.
+ * @param {number} appliedToWidth - The width value used for region normalization.
+ * @param {number} appliedToHeight - The height value used for region normalization.
+ * @returns {[Array<string>, Array<string>]} An array containing two arrays: 
+ *   - The first array contains HTML warning messages.
+ *   - The second array contains ExifTool command strings to fix detected issues.
  */
 function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth, appliedToHeight) {
 
@@ -194,13 +202,25 @@ function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth,
 function parseString(str) { if (str == undefined || str == null) return undefined; else return str.toString(); }
 
 
-/**
- * Picks up the metadata for the photo, parses it to find the People in Metadata Working Group format
- *  
- * @param {*} entry // File entry of file to extract metadata. If null, use the Photoshop metadata instead of xmpFile
- * @returns  [persons, subjects] directory of persons in the photo metadata and the subject subjects
- */
 
+/**
+ * Reads person and region metadata from an image entry using XMP metadata.
+ *
+ * Extracts face/person regions and related metadata from either a file entry or the currently open document,
+ * supporting both Microsoft and Adobe (MWG) region schemas. Handles cropping, rotation, and normalization
+ * of region coordinates. Returns structured information about detected persons, subjects, and region names.
+ *
+ * @param {Object|null} entry - The file entry object containing metadata, or null to use the current document.
+ * @returns {[Array<Object>, Set<string>, Array, Array, Set<string>]} 
+ *   An array containing:
+ *     1. persons: Array of person objects with name, coordinates, dimensions, entry, and dateTaken.
+ *     2. subjects: Set of subject names (from dc:subject).
+ *     3. html: Array of HTML strings or fragments for UI/debugging.
+ *     4. cmd: Array of command objects or strings for further processing.
+ *     5. regionNames: Set of unique region/person names found in the metadata.
+ *
+ * @throws Will log errors to the console if metadata cannot be read or parsed.
+ */
 function readPersonsFromMetadata(entry) {
     if (entry != null && entry.name.includes(fileToDebug)) {
         let k = 5;
@@ -231,6 +251,7 @@ function readPersonsFromMetadata(entry) {
     // getDocumentXMP is more reliable.
     let xmpMeta;
     let xmpFile = null;
+    let nativePath = entry != null ? entry.nativePath : "current document";
     if (entry == null) {
         xmpMeta = new xmp.XMPMeta(getDocumentXMP());
 
@@ -281,7 +302,9 @@ function readPersonsFromMetadata(entry) {
                 }
             }
         } catch (e) {
-            console.log("Missing Microsoft Schema " + e.toString() + "  FILE: " + entry.nativePath);
+
+            console.log("Missing Microsoft Schema " + e.toString() + "  FILE: " + nativePath);
+
         }
 
         for (let i = 1; xmpMeta.getProperty(xmpConstants.NS_DC, "dc:subject[" + i + "]") != undefined; i++) {
@@ -315,7 +338,7 @@ function readPersonsFromMetadata(entry) {
                     break;
                 case "1.57080":
                     newX = y;
-                    newY = 1 - x ;
+                    newY = 1 - x;
                     newW = h;
                     newH = w;
                     break;
@@ -332,7 +355,7 @@ function readPersonsFromMetadata(entry) {
                     break;
             }
             if (!(x == newX && y == newY && h == newH && w == newW)) {
-                console.log("FILE: " + entry.nativePath + ", personName=" + personName + ", rotation = ", rotation);
+                console.log("FILE: " + nativePath + ", personName=" + personName + ", rotation = ", rotation);
                 console.log("   x = " + x + ", newX = " + newX);
                 console.log("   y = " + y + ", newY = " + newY);
                 console.log("   h = " + h + ", newH = " + newH);
@@ -412,10 +435,8 @@ function readPersonsFromMetadata(entry) {
         }
 
     } catch (e) {
-        if (entry != null)
-            console.log("metadata error  " + e.toString() + "  FILE: " + entry.nativePath);
-        else
-            console.log("metadata error  " + e.toString());
+        console.log("metadata error  " + e.toString() + "  FILE: " + nativePath);
+
     }
 
     if (xmpFile != null)
@@ -434,7 +455,7 @@ function readPersonsFromMetadata(entry) {
  */
 const getDocumentXMP = () => {
 
-    return batchPlay(
+    let result = batchPlay(
         [
             {
                 _obj: "get",
@@ -446,7 +467,8 @@ const getDocumentXMP = () => {
                 },
             },],
         { synchronousExecution: true }
-    )[0].XMPMetadataAsUTF8;
+    );
+    return result[0].XMPMetadataAsUTF8;
 };
 
 module.exports = {

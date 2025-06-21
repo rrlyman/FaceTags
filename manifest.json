@@ -12,7 +12,8 @@
   },
   "manifestVersion": 5,
   "featureFlags": {
-    "enableSWCSupport": true
+    "enableAlerts": true, 
+    "enableSWCSupport": true  
   },
   "entrypoints": [
     {
