@@ -29,20 +29,20 @@ function noDifs(subjects) {
 }
 /**
  * Copy the names in the regions to the keywords and Subject
- * @param {*} entry 
+ * @param {*} nativePath 
  * @param {*} html 
  * @param {*} cmd 
  * @param {*} regions 
  * @param {*} subjects 
  */
-function refreshSubjects(entry, html, cmd, regions, subjects) {
+function refreshSubjects(nativePath, html, cmd, regions, subjects) {
     if (regions != undefined) {
         regions.forEach((region) => {
             if (region.name != undefined) {
                 if (!noDifs(subjects).includes(region.name)) {
                     errorLog(html, cmd,
                         "WARNING 03: \"" + region.name + "\" is in MWG mwgRectangle but is not in dc:subject. Copy the name to the keywords and Subject",
-                        "exiftool  -Keywords-=\"" + region.name + "\" -Subject-=\"" + region.name + "\"  -Subject+=\"" + region.name + "\" -Keywords+=\"" + region.name + "\" " + tagFile(entry.nativePath));
+                        "exiftool  -Keywords-=\"" + region.name + "\" -Subject-=\"" + region.name + "\"  -Subject+=\"" + region.name + "\" -Keywords+=\"" + region.name + "\" " + tagFile(nativePath));
 
                 }
             }
@@ -74,7 +74,7 @@ function regionInfoStruc(mRegions, appliedToWidth, appliedToHeight) {
  * Checks and synchronizes properties between Adobe (MWG) and Microsoft (MP) face region metadata,
  * and generates warnings and ExifTool commands for inconsistencies or issues found.
  *
- * @param {Object} entry - The file entry object, expected to have a `nativePath` property.
+ * @param {Object} nativePath - The file path object, expected to have a `nativePath` property.
  * @param {Array<Object>} mwgRegions - Array of Adobe (MWG) region objects, each with at least a `name` and `rect`.
  * @param {Array<string>} subjects - Array of subject names (typically face tags).
  * @param {Array<Object>} mpRegions - Array of Microsoft (MP) region objects, each with at least a `name` and `rect`.
@@ -84,7 +84,7 @@ function regionInfoStruc(mRegions, appliedToWidth, appliedToHeight) {
  *   - The first array contains HTML warning messages.
  *   - The second array contains ExifTool command strings to fix detected issues.
  */
-function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth, appliedToHeight) {
+function checkProperties(nativePath, mwgRegions, subjects, mpRegions, appliedToWidth, appliedToHeight) {
 
     let html = [];
     let cmd = [];
@@ -102,11 +102,11 @@ function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth,
     if (mwgRegions.length == 0 && mpRegions.length > 0) {
         errorLog(html, cmd,
             "WARNING 02: There are Microsoft regions but no Adobe regions. Copy all the valid Microsoft regions to the Adobe regions.",
-            'exiftool -config facetags.config  -RegionInfo<MPRegion2MWGRegion ' + tagFile(entry.nativePath));
-        refreshSubjects(entry, html, cmd, mpRegions, []);
+            'exiftool -config facetags.config  -RegionInfo<MPRegion2MWGRegion ' + tagFile(nativePath));
+        refreshSubjects(nativePath, html, cmd, mpRegions, []);
     };
 
-    refreshSubjects(entry, html, cmd, mwgRegions, subjects);
+    refreshSubjects(nativePath, html, cmd, mwgRegions, subjects);
 
     // deletes quotation marks that are in the subject name
     let done = false;
@@ -115,11 +115,11 @@ function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth,
             done = true;
             errorLog(html, cmd,
                 "WARNING 04: Subject, \"" + subject + "\" contains quotation marks. Remove them",
-                "exiftool -TagsFromFile @ -api 'Filter=s/\\\"//g'  -Keywords=  " + tagFile(entry.nativePath));
+                "exiftool -TagsFromFile @ -api 'Filter=s/\\\"//g'  -Keywords=  " + tagFile(nativePath));
             errorLog(html, cmd,
                 "",
-                "exiftool -TagsFromFile @ -api 'Filter=s/\\\"//g'   -Subject=  " + tagFile(entry.nativePath));
-            refreshSubjects(entry, html, cmd, mwgRegions, []);
+                "exiftool -TagsFromFile @ -api 'Filter=s/\\\"//g'   -Subject=  " + tagFile(nativePath));
+            refreshSubjects(nativePath, html, cmd, mwgRegions, []);
         }
     });
 
@@ -142,14 +142,14 @@ function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth,
         errorLog(html, cmd,
             "WARNING 07: The Microsoft rectangle for \"" + newNames.join(", and ") + "\" " +
             "is missing from the matching Adobe rectangle. Transfer the name from the Microsoft region to the Adobe region.",
-            'exiftool -config facetags.config  -RegionInfo<MPRegion2MWGRegion ' + tagFile(entry.nativePath));
-        // "exiftool   -RegionInfo=\"" + regionInfoStruc(mpRegions, appliedToWidth, appliedToHeight) + "\"  " + tagFile(entry.nativePath));
+            'exiftool -config facetags.config  -RegionInfo<MPRegion2MWGRegion ' + tagFile(nativePath));
+        // "exiftool   -RegionInfo=\"" + regionInfoStruc(mpRegions, appliedToWidth, appliedToHeight) + "\"  " + tagFile(nativePath));
         errorLog(html, cmd,
             "WARNING 07a: The Microsoft rectangle for \"" + newNames.join(", and ") + "\" " +
             "is missing from the matching Adobe rectangle. Transfer the name from the Microsoft region to the Adobe region.",
-            "exiftool  -Keywords-=\"" + zKey + "\" -Subject-=\"" + zKey + "\"  -Subject+=\"" + zKey + "\"  -Keywords+=\"" + zKey + "\" " + tagFile(entry.nativePath));
+            "exiftool  -Keywords-=\"" + zKey + "\" -Subject-=\"" + zKey + "\"  -Subject+=\"" + zKey + "\"  -Keywords+=\"" + zKey + "\" " + tagFile(nativePath));
 
-        refreshSubjects(entry, html, cmd, mpRegions, []);
+        refreshSubjects(nativePath, html, cmd, mpRegions, []);
     }
 
 
@@ -174,9 +174,9 @@ function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth,
         errorLog(html, cmd,
             "WARNING 05: The Microsoft rectangle for \"" + newNames.join(", and ") + "\" " +
             "is missing from the matching Adobe rectangle. Transfer the name from the Microsoft region to the Adobe region.",
-            "exiftool   -RegionInfo=\"" + regionInfoStruc(mpRegions, appliedToWidth, appliedToHeight) + "\"  " + tagFile(entry.nativePath));
+            "exiftool   -RegionInfo=\"" + regionInfoStruc(mpRegions, appliedToWidth, appliedToHeight) + "\"  " + tagFile(nativePath));
 
-        refreshSubjects(entry, html, cmd, mwgRegions, []);
+        refreshSubjects(nativePath, html, cmd, mwgRegions, []);
     }
     let dupNames = [];
     let foundDup = false;
@@ -192,7 +192,7 @@ function checkProperties(entry, mwgRegions, subjects, mpRegions, appliedToWidth,
     if (foundDup) {
         errorLog(html, cmd,
             "WARNING 06: Remove duplicate names " + dupNames.join(",") + " from Adobe regions.",
-            "exiftool   -RegionInfo=\"" + regionInfoStruc(mwgRegions, appliedToWidth, appliedToHeight) + "\"  " + tagFile(entry.nativePath));
+            "exiftool   -RegionInfo=\"" + regionInfoStruc(mwgRegions, appliedToWidth, appliedToHeight) + "\"  " + tagFile(nativePath));
     }
 
 
@@ -251,11 +251,12 @@ function readPersonsFromMetadata(entry) {
     // getDocumentXMP is more reliable.
     let xmpMeta;
     let xmpFile = null;
-    let nativePath = entry != null ? entry.nativePath : "current document";
+    let nativePath = "current document";
     if (entry == null) {
         xmpMeta = new xmp.XMPMeta(getDocumentXMP());
 
     } else {
+        nativePath = entry.nativePath;
         xmpFile = new xmp.XMPFile(entry.nativePath, xmp.XMPConst.FILE_JPEG, xmp.XMPConst.OPEN_FOR_READ); // not listed as async
         xmpMeta = xmpFile.getXMP();  // not listed as async
     }
@@ -379,7 +380,7 @@ function readPersonsFromMetadata(entry) {
 
         }
 
-        [html, cmd] = checkProperties(entry, mwgRegions, dcSubjects, mpRegions, appliedToWidth, appliedToHeight);
+        [html, cmd] = checkProperties(nativePath, mwgRegions, dcSubjects, mpRegions, appliedToWidth, appliedToHeight);
 
         //////////////////////////////  fix up values ////////////////////////////
 
